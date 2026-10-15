@@ -4,11 +4,17 @@
 # what the engine can resolve.
 #
 # The partition below is the bootstrap's order, written down a second time on
-# purpose: the order is load-bearing (the site cannot land before the tooling
-# it builds with, and the deployment record cannot be written before the site
-# is live), and a module that drifts into another phase fails at landing time,
-# live, with nothing in this repository having looked wrong. Moving one is a
-# deliberate change, argued in the diff that edits both places.
+# purpose. It is the one-landing shape (cirrus-baseline v22): `01-product`
+# places EVERY module and is the one phase that deploys; `02-docs` places
+# nothing. The order that used to need separate landings — the D1 database,
+# then its migrations, then the Worker that binds it — is carried by the plan
+# instead, and this file checks the edges that carry it: every component that
+# reads a wiring document waits, on a merge to main, for the infra component
+# that publishes it; every deployable that binds a migrated database waits for
+# its migrations; and the landing's await checks the document exists
+# afterwards. A module that drifts into another phase, or an edge that goes
+# missing, fails at landing time, live, with nothing in this repository
+# having looked wrong.
 #
 # Adapted from sourceplane/cirrus-baseline's testing/phases.test.sh: the
 # narration rules and the hook-only rule are Cirrus's, unchanged.
@@ -37,18 +43,27 @@ if not phases:
     sys.exit("repo-blueprint.yaml declares no phases — this check has gone blind")
 
 PARTITION = {
-    "01-scaffold": ["ai-deployment", "ai-operations", "discovery-roots", "github-workflows",
-                    "rebrand-values", "root-gitignore", "root-intent", "root-kiox",
-                    "root-kiox-lock", "root-package-json", "root-pnpm-lock",
-                    "root-pnpm-workspace", "root-readme", "root-turbo", "tooling-eslint",
-                    "tooling-tsconfig", "tooling-wire", "vscode"],
-    "02-data": ["cloudflare-d1"],
-    "03-site": ["web", "web-tests"],
-    "04-docs": [],
+    "01-product": ["ai-deployment", "ai-operations", "cloudflare-d1", "db", "db-migrate",
+                   "db-tests", "discovery-roots", "github-workflows", "rebrand-values",
+                   "root-gitignore", "root-intent", "root-kiox", "root-kiox-lock",
+                   "root-package-json", "root-pnpm-lock", "root-pnpm-workspace", "root-readme",
+                   "root-turbo", "tooling-eslint", "tooling-migrations", "tooling-tsconfig",
+                   "tooling-wire", "vscode", "web", "web-tests"],
+    "02-docs": [],
 }
-HOOK_ONLY = {"04-docs"}
+HOOK_ONLY = {"02-docs"}
 # The phases that DEPLOY, and so must give a re-run something to land.
-DEPLOYS = {"02-data", "03-site"}
+DEPLOYS = {"01-product"}
+# Each phase's post and await hooks, in order — the one-landing recipe. The
+# `secret-*` reconciles are matched as a group (one per brokered key) and the
+# `wiring` await only when infra publishes wiring; both are checked below.
+POST = {
+    "01-product": ["retouch", "git-init", "stage", "rebrand", "orun-workspace", "work-tree",
+                   "promotion", "dev-lanes", "restage", "rebrand-verify", "pnpm-lockfile",
+                   "repo", "link", "secret-*", "land"],
+    "02-docs": ["promotion", "dev-lanes", "render", "land"],
+}
+AWAIT = {"01-product": ["converge", "wiring", "verify"], "02-docs": ["verify"]}
 
 by_name = {p["name"]: p for p in phases}
 names = [p["name"] for p in phases]
@@ -126,6 +141,112 @@ for p in phases:
         if not watch or (watch[0].get("with") or {}).get("sha") != "{{ .phase.hooks.land.outputs.mergeSha }}":
             bad(f"phase {p['name']} deploys and does not watch the convergence of the "
                 f"commit it merged (orun.run/watch@v1 with sha: mergeSha)")
+
+# ── the hooks run in the one-landing order ────────────────────────────────
+def collapse(ids):
+    out = []
+    for i in ids:
+        i = "secret-*" if i.startswith("secret-") else i
+        if not out or out[-1] != i or i != "secret-*":
+            out.append(i)
+    return out
+for name, want in POST.items():
+    got = collapse([h.get("id") for h in ((by_name.get(name, {}).get("hooks") or {}).get("post") or [])])
+    if got != want:
+        bad(f"phase {name}'s post hooks are {got}; the one-landing order is {want}")
+for name, want in AWAIT.items():
+    got = [h.get("id") for h in ((by_name.get(name, {}).get("hooks") or {}).get("await") or [])]
+    if got != want:
+        bad(f"phase {name}'s await hooks are {got}; want {want}")
+for p in phases:
+    if p["name"] not in DEPLOYS:
+        for h in hooks_of(p):
+            if (h.get("uses") or "").startswith(("orun.integrations/reconcile@", "orun.run/watch@")):
+                bad(f"phase {p['name']} deploys nothing and runs {h['uses']} ({h.get('id')})")
+
+# ── INFRA BEFORE APP: the order the one landing relies on ─────────────────
+# Every infra component that lease-publishes a wiring document
+# (`secretOutputs: "WIRING_X=wiring"`), and every component that reads one
+# (`WIRING_X_<ENV>` in secretEnv). A reader must wait for its publisher on a
+# merge to main — `mode: enforced` — and not on a pull request, which deploys
+# nothing (`modeRules` advisory on github-pull-request): a job resolves its
+# secrets when it STARTS, so without the edge the first convergence's deploy
+# would start before the apply had published the id it binds.
+comps = {}
+for f in root.rglob("component.yaml"):
+    if "node_modules" in f.parts:
+        continue
+    d = yaml.safe_load(f.read_text()) or {}
+    comps[(d.get("metadata") or {}).get("name")] = (f.relative_to(root).as_posix(), d.get("spec") or {})
+publishes = {}
+for name, (rel, spec) in comps.items():
+    outs = str((spec.get("parameters") or {}).get("secretOutputs") or "")
+    for pair in filter(None, (x.strip() for x in outs.split(","))):
+        key = pair.split("=", 1)[0]
+        if key.startswith("WIRING_"):
+            publishes[key] = name
+if not publishes:
+    bad("no infra component lease-publishes a WIRING_* document — this check has gone blind")
+readers = 0
+for name, (rel, spec) in comps.items():
+    keys = {re.sub(r"_(DEV|STAGE|PROD)$", "", k) for k in (spec.get("secretEnv") or {}) if k.startswith("WIRING_")}
+    for key in sorted(keys):
+        readers += 1
+        pub = publishes.get(key)
+        if not pub:
+            bad(f"{rel} reads {key}, which no infra component publishes")
+            continue
+        edge = next((d for d in spec.get("dependsOn") or [] if d.get("component") == pub), None)
+        rules = (edge or {}).get("modeRules") or []
+        advisory_on_pr = any(r.get("mode") == "advisory"
+                             and ((r.get("when") or {}).get("triggerRef") == "github-pull-request")
+                             for r in rules)
+        if not edge or edge.get("mode") != "enforced" or not advisory_on_pr:
+            bad(f"{rel} reads {key} and does not wait for {pub} on a merge to main — declare "
+                f"dependsOn {pub} with mode: enforced and a modeRules advisory on github-pull-request")
+        mod = next((m for m in bp.get("modules") or [] if (m.get("from") or "").rstrip("/") == rel.rsplit("/", 1)[0]), None)
+        pub_mod = next((m["name"] for m in bp.get("modules") or []
+                        if (m.get("from") or "").rstrip("/") == comps[pub][0].rsplit("/", 1)[0]), None)
+        if mod and pub_mod and pub_mod not in (mod.get("dependsOn") or []):
+            bad(f"module {mod['name']} reads {key} and is not placed after {pub_mod} (module dependsOn)")
+# ── THE SCHEMA BEFORE THE APP ─────────────────────────────────────────────
+# A migration component (`type: db-migrate`) creates the schema inside the
+# database a wiring document names. Every other component that binds that
+# database must wait for it on a merge to main, as it waits for the apply —
+# or the first convergence deploys a Worker that queries a table that is not
+# there yet — and must not on a pull request, where the migrations only plan.
+def enforced_on_main(spec, target):
+    edge = next((d for d in spec.get("dependsOn") or [] if d.get("component") == target), None)
+    rules = (edge or {}).get("modeRules") or []
+    return bool(edge) and edge.get("mode") == "enforced" and any(
+        r.get("mode") == "advisory" and (r.get("when") or {}).get("triggerRef") == "github-pull-request"
+        for r in rules)
+def wiring_read(spec):
+    return {re.sub(r"_(DEV|STAGE|PROD)$", "", k) for k in (spec.get("secretEnv") or {}) if k.startswith("WIRING_")}
+migrators = {n: wiring_read(sp) for n, (_, sp) in comps.items() if sp.get("type") == "db-migrate"}
+schema_readers = 0
+for mname, keys in migrators.items():
+    if not keys:
+        bad(f"{comps[mname][0]} is a db-migrate component that reads no wiring document — it cannot know its database")
+    for name, (rel, spec) in comps.items():
+        if name == mname or not (wiring_read(spec) & keys):
+            continue
+        schema_readers += 1
+        if not enforced_on_main(spec, mname):
+            bad(f"{rel} binds the database {mname} migrates and does not wait for it on a merge to main — "
+                f"declare dependsOn {mname} with mode: enforced and a modeRules advisory on github-pull-request")
+# …and the landing's await asks the platform that every one of them exists.
+for p in phases:
+    if p["name"] not in DEPLOYS:
+        continue
+    exists = [h for h in ((p.get("hooks") or {}).get("await") or [])
+              if (h.get("uses") or "").startswith("orun.secrets/exists@")]
+    keys = {k for h in exists for k in ((h.get("with") or {}).get("keys") or [])}
+    envs = {e for h in exists for e in ((h.get("with") or {}).get("environments") or [])}
+    if set(publishes) - keys:
+        bad(f"phase {p['name']} does not await the wiring {sorted(set(publishes) - keys)} with orun.secrets/exists@v1")
+    if publishes and envs != {"stage", "prod"}:
+        bad(f"phase {p['name']} awaits the wiring on {sorted(envs)}, not stage and prod")
 
 # ── every phase's task is one the run-level list opens, in the same order ─
 def task_names(hooks):
@@ -249,6 +370,9 @@ if problems:
     sys.exit(1)
 
 placed_n = sum(len(p.get("modules") or []) for p in phases)
+print(f"   {len(publishes)} wiring document(s), {readers} reader(s), each waiting for its publisher on main")
+if migrators:
+    print(f"   {len(migrators)} migration component(s); {schema_readers} deployable(s) binding their database wait for them on main")
 narrated = sum(len(p.get("narrate") or {}) for p in phases)
 narrated += sum(1 for p in phases for h in hooks_of(p) if h.get("narrate"))
 print(f"   {len(phases)} phases, {placed_n} modules, {len(HOOK_ONLY)} hook-only — in execution order")

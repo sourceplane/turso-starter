@@ -8,18 +8,18 @@
 // for a product that is live. During a bootstrap it proves nothing — the
 // content comes from a pinned baseline whose own CI already ran it, and
 // every phase's pull request is checked by `plan` alone — and it costs the
-// one thing a bootstrap's wall-clock is made of: runner slots. The site's
-// landing is a Next.js build per environment; a third, on the dev rung,
-// re-proves what the baseline's own CI already proved and competes with
-// stage and prod for the runner pool. (Measured on the Cirrus baseline,
-// where this tool comes from: dev took eight of eighteen lanes and stage and
-// prod got five each.)
+// one thing a bootstrap's wall-clock is made of: runner slots. The product's
+// landing is a Next.js build per deployed environment; a third, on the dev
+// rung (and its tests beside it), re-proves what the baseline's own CI
+// already proved and competes with stage and prod for the runner pool.
+// (Measured on the Cirrus baseline, where this tool comes from: dev took
+// eight of eighteen lanes and stage and prod got five each.)
 //
-// So 01-scaffold defers the trigger and 04-docs, the last landing, puts it
+// So 01-product defers the trigger and 02-docs, the last landing, puts it
 // back, exactly as tooling/bootstrap/promotion.mjs does for prod's gate:
 //
-//   node tooling/bootstrap/dev-lanes.mjs --defer     # 01-scaffold, before the first landing
-//   node tooling/bootstrap/dev-lanes.mjs --restore   # 04-docs, the last landing
+//   node tooling/bootstrap/dev-lanes.mjs --defer     # 01-product, before the first landing
+//   node tooling/bootstrap/dev-lanes.mjs --restore   # 02-docs, the last landing
 //   node tooling/bootstrap/dev-lanes.mjs --check     # prints deferred | active
 //
 // --defer replaces dev's `- github-push-main` trigger line with one marker
@@ -28,8 +28,8 @@
 // keep their dev lanes throughout: only the push-to-main activation moves.
 //
 // The trigger is deferred, never dropped: a bootstrap that stops before
-// 04-docs leaves the marker in intent.yaml, and `--restore` (or a re-run of
-// 04-docs) is the whole fix.
+// 02-docs leaves the marker in intent.yaml, and `--restore` (or a re-run of
+// 02-docs) is the whole fix.
 import * as fs from "node:fs";
 
 const FILE = process.argv.includes("--file")

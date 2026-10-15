@@ -1,7 +1,7 @@
-# BOOTSTRAP — a new site from this baseline, in phases
+# BOOTSTRAP — a new product from this baseline, in one landing
 
-How to go from **nothing** to a **todo list live on stage and prod, on its own D1 database,
-documented**, with ONE provider consent.
+How to go from **nothing** to a **todo list live on stage and prod, its D1
+databases applied and migrated, documented**, with ONE provider consent.
 
 There is one artifact: **`repo-blueprint.yaml`**. It declares what to place,
 in what order, what each phase needs first, and what to say while it runs.
@@ -11,10 +11,12 @@ not separate workflows. The console card the platform renders is
 brokered secrets and the programme, and `testing/manifest.test.sh` holds it
 to what the build document does.
 
-Target wall-clock: **about fifteen minutes** — an estimate summed from the
-phases until a bootstrap measures it: three landings, one Next.js build per
-environment, stage and prod deployed side by side until `04-docs` restores
-the promotion gate.
+Target wall-clock: **about sixteen minutes** — an estimate summed from the
+phases until a bootstrap measures it: ONE landing whose pull request waits on
+Checks (a full Next.js build), then one convergence — per environment the D1
+database applied, then its migrations, then the site built with its id and
+deployed, stage and prod side by side — then a short docs landing that
+restores the promotion gate.
 
 ## 0. What you need
 
@@ -24,19 +26,21 @@ the promotion gate.
   landings that commit per phase and wait on the PR's whole CI run,
   `githubOwner` on the doctor probe, `environments` on the secrets probe, a
   probe deferred for a project not yet created, and `from: workspace`). The
-  site's own `ci.yml` pins its lanes separately (v2.78.4).
+  product's own `ci.yml` pins its lanes separately (v2.78.4), and its plans
+  need that pin: the floor does not apply a `dependsOn` edge's `modeRules`.
 - A Cloudflare account (the free plan is enough for one Worker with static
   assets and a D1 database per environment) and its **Account API token**
-  with Workers Scripts Write **and D1 Write** (the console's Connect recipe
-  lists the exact permission groups). It is the ONLY provider credential this
-  baseline needs — and it must be able to mint both the `workers-deploy` and
-  `d1-edit` scopes.
-- An Orun Cloud workspace for the site — `orunWorkspace`, or the workspace
-  the build runs in (ORUN_WORKSPACE) when that is unset — with an
+  with Workers Scripts Write and D1 Edit (the console's Connect recipe lists
+  the exact permission groups). It is the ONLY provider credential this
+  baseline needs: the platform mints two scoped tokens from it per run —
+  `workers-deploy` for the Worker's deploy, `d1-edit` for the database's
+  apply and its migrations (the deploy scope cannot touch D1).
+- An Orun Cloud workspace for the product — `orunWorkspace`, or the
+  workspace the build runs in (ORUN_WORKSPACE) when that is unset — with an
   **admin-role API key** for headless runs (secret writes below admin are
   masked as `not_found`).
 - **The repository allow-listed in the workspace** (console → Settings → Git
-  repos), unless the credential can write links. `01-scaffold`'s `link` step
+  repos), unless the credential can write links. `01-product`'s `link` step
   stops and names the fix if it is not.
 
 ## 1. One command: `--resume`
@@ -49,15 +53,15 @@ git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/turso
 cd turso-starter
 
 orun new --blueprint repo-blueprint.yaml \
-  --out ~/sites/acme-notes --run-hooks --resume \
-  --set reponame=acme-notes --set productname="Acme Notes" \
+  --out ~/sites/acme-todos --run-hooks --resume \
+  --set reponame=acme-todos --set productname="Acme Todos" \
   --set productdomain=acme.dev --set githuborg=acme-inc \
   --set orunWorkspace=ws_XXXXXXXX \
   --set subdomain=<workers-dev-subdomain>
 ```
 
 **`--run-hooks` is the difference between placing files and bootstrapping a
-site.** Without it `orun new` writes the tree and stops: no repository, no
+product.** Without it `orun new` writes the tree and stops: no repository, no
 landing, no convergence watch, no probe. That is deliberate — it is what
 makes the offline bootstrap in `testing/` possible with no workspace and no
 provider.
@@ -65,28 +69,26 @@ provider.
 `--resume` is safe to re-run from anywhere, a fresh container with a fresh
 `--out` included: **phase state is derived from the tree, never stored.** A
 phase whose files are present but branded derives as `drifted`, and
-`--resume` leaves it placed rather than reverting the site's identity.
+`--resume` leaves it placed rather than reverting the product's identity.
 
 ## 1b. Or phase by phase
 
 | phase | what it lands | verified by |
 |---|---|---|
-| `01-scaffold` | the repository, created and linked; intent, CI, tooling, identity | its PR's checks green, merged |
-| `02-data` | `infra/terraform/cloudflare-d1`; the brokered `d1-edit` token | the convergence green (Terraform plan and apply) and `WIRING_CLOUDFLARE_D1` published on stage and prod |
-| `03-site` | `apps/web` + `tests/web`; the brokered Cloudflare secrets | the convergence green (build, deploy, smoke) and both workers.dev URLs answering |
-| `04-docs` | `ai/context/deployment.md` from probed facts; prod's promotion gate and dev's push lanes restored | the final probe |
+| `01-product` | the repository, created and linked; the WHOLE product in one PR — intent, CI, tooling, identity, the D1 root, the migrations, the site and its tests; the brokered Cloudflare secrets (the deploy token, the D1 token, the account id) | its PR's checks green and merged; the convergence green (D1 applied, then migrated, then the site built, deployed, smoke-tested); `WIRING_CLOUDFLARE_D1` on stage and prod; both workers.dev URLs answering |
+| `02-docs` | `ai/context/deployment.md` from probed facts; prod's promotion gate and dev's push lanes restored | the final probe |
 
 ```bash
-orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-notes --run-hooks \
-  --phase 01-scaffold --values ~/acme-notes.values.yaml
-# … then 02-data, then 03-site, then 04-docs
+orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-todos --run-hooks \
+  --phase 01-product --values ~/acme-todos.values.yaml
+# … then 02-docs
 ```
 
-Every later phase reads the identity back from `.rebrand/values.json` in the
-placed tree, but the blueprint's **required** inputs — `reponame`,
-`productname`, `productdomain`, `githuborg` — are validated before anything
-runs, so pass them every time (a `--values` file is easier). The full guide,
-one page per phase: [docs/phases/README.md](docs/phases/README.md).
+`02-docs` reads the identity back from `.rebrand/values.json` in the placed
+tree, but the blueprint's **required** inputs — `reponame`, `productname`,
+`productdomain`, `githuborg` — are validated before anything runs, so pass
+them every time (a `--values` file is easier). The full guide, one page per
+phase: [docs/phases/README.md](docs/phases/README.md).
 
 | flag | what it does |
 |---|---|
@@ -94,15 +96,45 @@ one page per phase: [docs/phases/README.md](docs/phases/README.md).
 | `--phase <name>` | places exactly that phase; its `requires.phases` still gates |
 | `--until <name>` | places every phase through that one and stops |
 
-What lands in the site is PRODUCT-ONLY: the app, its tests, its CI, its
-tooling, its README and its two context pages. None of this repository's
-machinery (`.baseline/`, the blueprints, `tooling/rebrand`,
+What lands in the product is PRODUCT-ONLY: the app, its D1 root, its
+migrations and their runner, its tests, its CI, its tooling, its README and
+its two context pages. None of this
+repository's machinery (`.baseline/`, the blueprints, `tooling/rebrand`,
 `tooling/bootstrap`, `hooks/`, `testing/`, `docs/phases/`, `specs/`,
-`tasks/`, this file) ships. That promise is a test: `testing/leak.test.sh`
-derives what every phase would place and gates the set, and
-`testing/placement.test.sh` gates the same rules over a placed, branded tree.
+`tasks/`, this file) ships, and no file that ships names one of them. That
+promise is a test: `testing/leak.test.sh` derives what every phase would
+place and gates the set and its sources, and `testing/placement.test.sh`
+gates the same rules over a placed, branded tree.
 
-## 2. Headless / container mode
+## 2. Why one landing is safe: the plan carries the order
+
+The database must exist, and carry its schema, before the Worker that binds
+it: the Worker's `wrangler.jsonc` carries the database id, rendered in its
+build from the wiring document the D1 root publishes after its apply, and
+the page reads a `todos` table the migrations create. That order used to
+need landings of its own. It does not, because the product's plan holds it,
+per environment:
+
+- `infra/db-migrate/component.yaml` declares `dependsOn: cloudflare-d1`, and
+  `apps/web/component.yaml` declares `dependsOn` on `cloudflare-d1` and
+  `db-migrate`, each with `mode: enforced` and `modeRules` making it
+  advisory on `github-pull-request`. On the merge the migrations wait for
+  their environment's apply and the Worker's deploy waits for both; on a
+  pull request nothing applies or deploys, so nothing waits.
+- A job resolves its secrets when it STARTS, so `WIRING_CLOUDFLARE_D1` is
+  there when the migrations begin, and `WIRING_CLOUDFLARE_D1_<ENV>` when the
+  deploy does.
+- The landing's `await` then asks the platform that the wiring exists on
+  stage and prod (`orun.secrets/exists@v1`) — every later migration and
+  deploy reads it.
+
+`testing/phases.test.sh` fails if a component that reads a wiring document
+does not wait for its publisher this way, or if a deployable that binds the
+migrated database does not wait for the migrations;
+`testing/placement.test.sh` plans the product's own merge and asserts the
+three levels: the D1 apply, then the migrations, then the deploy.
+
+## 3. Headless / container mode
 
 The blueprint's source is this repository (`sources: [{kind: dir, path: .}]`),
 so the container contract is a shallow clone at a pinned tag plus two
@@ -115,55 +147,67 @@ export GITHUB_TOKEN=…        # fine-grained PAT (below)
 git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/turso-starter
 cd turso-starter
 orun new --blueprint repo-blueprint.yaml \
-  --out /work/acme-notes --run-hooks --resume --progress json \
-  --values /work/acme-notes.values.yaml
+  --out /work/acme-todos --run-hooks --resume --progress json \
+  --values /work/acme-todos.values.yaml
 ```
 
 | requirement | detail |
 |---|---|
-| `GITHUB_TOKEN` | fine-grained PAT: **read** on this repository; on the SITE's repository **contents write**, **pull-requests write**, **actions read+write** (`orun.run/watch@v1` resumes runs with `gh run rerun`), **checks read**; **repository create** on the owner if `01-scaffold` creates it (or pre-create it — supported) |
+| `GITHUB_TOKEN` | fine-grained PAT: **read** on this repository; on the PRODUCT's repository **contents write**, **pull-requests write**, **actions read+write** (`orun.run/watch@v1` resumes runs with `gh run rerun`), **checks read**; **repository create** on the owner if `01-product` creates it (or pre-create it — supported) |
 | classic token caveat | a classic PAT or gh OAuth token also needs the `workflow` scope to push `.github/workflows/` |
 | pinning | the clone's `--branch <tag>` pins everything: the blueprint, its modules and its hooks' scripts all come from that one commit |
 
-## 3. After the site is live
+## 4. After the product is live
 
-- **Change it**: the page is `apps/web/app/page.tsx`, the queries are in
-  `apps/web/app/actions.ts` and `todo-list.tsx`, the name and source link are
+- **Change the site**: `apps/web/app/`; its name and source link are
   `apps/web/lib/site.ts`. Every merge to `main` redeploys.
-- **Custom domain**: attach it to the Worker in Cloudflare (the site's
-  README, "Custom domain"); nothing in the repository changes. There is no
-  domain phase: attaching a domain needs zone
-  permissions the brokered `workers-deploy` token does not carry.
-- **Refresh the record**: re-run `--phase 04-docs`; it is idempotent.
+- **Change the schema**: a new migration under `packages/db/src/migrations/`,
+  listed in `src/manifest.ts` (`pnpm --filter @saas/db run manifest:fix`).
+  The next merge applies it before the site redeploys.
+- **Add a binding** (R2, KV, another database): a Terraform root that
+  lease-publishes `WIRING_<ROOT>`, a token in `wrangler.template.jsonc`, its
+  fixture entry, and in `apps/web/component.yaml` the root in the build's
+  `--components`, the `WIRING_<ROOT>_<ENV>` secretEnv and an enforced
+  `dependsOn` on it. `ai/context/operations.md` in the product says the same.
+- **Custom domain**: attach it to the Worker in Cloudflare (the product's
+  README, "Custom domain"). There is no domain phase: attaching a domain
+  needs zone permissions the brokered `workers-deploy` token does not carry.
+  Nothing in the repository changes — the page renders no absolute link to
+  itself.
+- **Refresh the record**: re-run `--phase 02-docs`; it is idempotent.
 
-## 4. Testing this baseline
+## 5. Testing this baseline
 
 `.github/workflows/baseline.yml` runs three tiers on every pull request, and
 each runs locally the same way:
 
 ```bash
-for t in manifest phases coverage rebrand retouch bootstrap-defer; do bash testing/$t.test.sh; done
+for t in manifest phases coverage rebrand retouch bootstrap-defer wire; do bash testing/$t.test.sh; done
 bash testing/leak.test.sh        # needs orun
-bash testing/placement.test.sh   # needs orun, node, pnpm: the offline bootstrap
-bash testing/e2e.test.sh         # + network for pnpm: the site built, dry-deployed and served
+bash testing/placement.test.sh   # needs orun >= ci.yml's pin, node, pnpm: the offline bootstrap and the product's own plan
+bash testing/e2e.test.sh         # + network for pnpm: the product built in the job tree, migrated, dry-deployed and served
 ```
 
-The offline bootstrap (`testing/lib/bootstrap.sh`) places every phase in
+The offline bootstrap (`testing/lib/bootstrap.sh`) places both phases in
 order and finishes each with the blueprint's OWN `run:` hooks — read out of
-`repo-blueprint.yaml`, not transcribed — so the rebrand, the re-tenant, the
-deferrals and their restore, the retouch marker, the lockfile and the
+`repo-blueprint.yaml`, not transcribed — so the retouch marker, the rebrand,
+the re-tenant, the deferrals and their restore, the lockfile and the
 deployment record all run exactly as a real bootstrap runs them. Only the
-platform's typed actions (task, repo, link, land, watch, probe, reconcile)
-are stood in for, a landing becoming a commit.
+platform's typed actions (task, repo, link, reconcile, land, watch, secrets,
+probe) are stood in for, a landing becoming a commit; the e2e runs the
+migration lane's own apply step against a stand-in for D1's REST API over
+real SQLite. What no offline test can do is the platform's half: the
+database applied for real (the D1 root is held to `terraform validate`),
+the migrations applied to it, the tokens minted, the deploy, the probes.
 
-## 5. Cutting a baseline tag (maintainers)
+## 6. Cutting a baseline tag (maintainers)
 
-Every site built from this repository resolves a `baseline-vN` tag, so the
-tag is cut by a workflow rather than by hand:
+Every product built from this repository resolves a `baseline-vN` tag, so
+the tag is cut by a workflow rather than by hand:
 
 ```bash
-gh workflow run tag.yml -f version=baseline-v2          # from main
-gh workflow run tag.yml -f version=baseline-v2 -f ref=<sha>
+gh workflow run tag.yml -f version=baseline-v1          # from main
+gh workflow run tag.yml -f version=baseline-v1 -f ref=<sha>
 ```
 
 It refuses a version that is not `baseline-v<N>` and a tag that already
@@ -176,17 +220,23 @@ at the tag and refuses the whole catalogue if it 404s.
 
 | Symptom | Cause → fix |
 |---|---|
-| `01-scaffold` parks: `waiting for github for <org>` | the workspace's GitHub connection is to another account. Connect the App installation on `<org>` (console → Integrations → GitHub), then `--resume` |
-| `01-scaffold` stops at `link` | the repository is not linked to the workspace and the credential cannot link it. Allow-list it (console → Settings → Git repos) and re-run the phase |
-| `02-data` stops on `secret-d1-edit`: `parent_grant_insufficient` | the Cloudflare connection's token lacks D1 Write, so the `d1-edit` scope cannot be minted from it. Re-issue the token with D1 Write, re-connect, and re-run `02-data` — keys that exist are kept |
-| `03-site` deploy lane: `wire: missing wiring documents … WIRING_CLOUDFLARE_D1_<ENV>` | `02-data` has not published the database's wiring on that environment. Run (or re-run) `02-data`; its `verify` checks exactly this |
-| `02-data` or `03-site` waits on the `providers` probe, then stops | Cloudflare is not connected. Connect it (console → Integrations), then re-run the phase — the probe is a wait, not a failure |
+| `01-product` parks: `waiting for github for <org>` | the workspace's GitHub connection is to another account. Connect the App installation on `<org>` (console → Integrations → GitHub), then `--resume` |
+| `01-product` waits on the `providers` probe, then stops | Cloudflare is not connected. Connect it (console → Integrations), then re-run the phase — the probe is a wait, not a failure |
+| `01-product` stops at `link` | the repository is not linked to the workspace and the credential cannot link it. Allow-list it (console → Settings → Git repos) and re-run the phase |
 | Secret WRITE fails `not_found` while listings work | the API key's role is below admin; re-mint it with the admin role |
-| Deploy lane: Authentication error (10000) | the connection's token lacks Workers Scripts Write; re-issue it, re-connect, re-run `03-site` |
-| Convergence failed AFTER the PR merged; re-running lands nothing | expected on its own — the files are on main. Re-run the phase (`--phase 03-site`, `--redo 03-site`, or the console's Retry): its `retouch` hook gives the landing a diff and the site redeploys |
-| The site's `intent.yaml` says `workspace: ws_SET_ME` | `orunWorkspace` was empty and the build ran outside a workspace; set it and re-run `01-scaffold` |
-| A bootstrap stopped before `04-docs`; prod no longer waits on stage | the gate is deferred, not dropped: run `04-docs`, or `node tooling/bootstrap/promotion.mjs --restore --file <site>/intent.yaml` |
+| D1 lane or db-migrate lane: Authentication error (10000) | the connection's token cannot mint D1 Edit (`d1-edit`); re-issue it with D1 Edit, re-connect, re-run `01-product` |
+| deploy lane: Authentication error (10000) | the connection's token lacks Workers Scripts write (`workers-deploy`); same fix |
+| D1 lane: a database with this name already exists | `adopt.tf` imports a database of the same name; restore it if removed. Two products with one `reponame` in one account share names — pick another `reponame` |
+| db-migrate lane: `No D1 database id` | that environment's D1 apply failed or never ran — read its lane; the migrations wait on it |
+| db-migrate lane: `Checksum mismatch for already-applied migrations` | an applied migration's file was edited; restore it and put the change in a new migration |
+| web lane fails resolving `WIRING_CLOUDFLARE_D1_<ENV>` | that environment's D1 apply failed — read its lane; the web lane waits on it |
+| the smoke fails on a "no `todos` table" notice | the migrations did not reach the database the Worker binds — read the db-migrate lane for that environment |
+| `wiring` await stops: `WIRING_CLOUDFLARE_D1` missing on stage or prod | the convergence was green but the apply published nothing: the D1 component lost its `secretOutputs`, or its lane was not in the plan. Re-run the phase; its retouch marker re-plans the D1 root |
+| Convergence failed AFTER the PR merged; re-running lands nothing | expected on its own — the files are on main. Re-run the phase (`--phase 01-product`, `--redo 01-product`, or the console's Retry): its `retouch` hook gives the landing a diff and the D1 root, the migrations and the site re-plan; applied migrations are skipped |
+| The product's `intent.yaml` says `workspace: ws_SET_ME` | `orunWorkspace` was empty and the build ran outside a workspace; set it and re-run `01-product` |
+| A bootstrap stopped before `02-docs`; prod no longer waits on stage | the gate is deferred, not dropped: run `02-docs`, or `node tooling/bootstrap/promotion.mjs --restore --file <product>/intent.yaml` |
 | `✕ input "productdomain" is required` | all four required inputs must be set on every invocation, single-phase ones included |
 | `unknown flag: --phase` or a parse error in the blueprint | the CLI is below the v2.58.11 floor |
-| `03-site` lanes fail in `build-app`: `Symlink apps/web/node_modules/next is invalid, it points out of the filesystem root` | the site's intent pins stack-tectonic ≥ 0.20.0, whose lane-scoped install links each job's node_modules out of its tree, which Next 16's Turbopack refuses. Pin 0.19.0 (baseline-v2 does; `intent.yaml` says why) |
-| `03-site`'s convergence reported green, then `verify` got 404 from both URLs | a second workflow ran on the push to main and the watch took its run (baseline-v1's `checks.yml`). baseline-v2 runs `checks.yml` on pull requests only; read the CI run on main for the real result |
+| web lane `verify-app-structure` fails on `wrangler.jsonc` | the config is not committed. It is the fixture render of `wrangler.template.jsonc`: `pnpm run wire:fixture` and commit it |
+| web lane `build-app`: `Symlink apps/web/node_modules/next is invalid, it points out of the filesystem root` | the product's intent pins stack-tectonic ≥ 0.20.0, whose lane-scoped install links each job's node_modules out of its tree, which Next 16's Turbopack refuses. Pin 0.19.0 (`intent.yaml` says why) |
+| the convergence reported green, then `verify` got 404 | a second workflow ran on the push to main and the watch took its run. Only `ci.yml` may run on a push to main (`checks.yml` is pull-request only) |

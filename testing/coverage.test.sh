@@ -35,7 +35,7 @@ def bad(m): problems.append(m)
 # with its reason rather than skipped by a pattern: "tests/*" would also hide
 # the test suite a product genuinely needs, and the next
 # baseline-only directory should have to be argued for in a diff.
-# EMPTY: every component here is a site's. The baseline's own suites live in
+# EMPTY: every component here is a product's. The baseline's own suites live in
 # `testing/`, which is not a component at all and so is not one this gate can
 # miss. The map stays so that the next baseline-only directory has to be
 # argued for in a diff; the check below refuses an exemption whose directory is

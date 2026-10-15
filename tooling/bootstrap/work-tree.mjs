@@ -9,15 +9,15 @@
 //     sync: on-merge
 //
 // and `orun plan` on main reconciles that tree into the workspace's work
-// plane. A site built from this baseline has neither directory — `specs/` and
+// plane. A product built from this baseline has neither directory — `specs/` and
 // `tasks/` are the factory's, and the leak gate keeps them out — and its
 // bootstrap work is opened on the platform by the build itself. Left in, the
 // block would point the product's every plan at two directories that do not
 // exist.
 //
-// So 01-scaffold removes it from the product's copy, before the first landing:
+// So 01-product removes it from the product's copy, before the first landing:
 //
-//   node tooling/bootstrap/work-tree.mjs --strip    # 01-scaffold
+//   node tooling/bootstrap/work-tree.mjs --strip    # 01-product
 //   node tooling/bootstrap/work-tree.mjs --check    # prints declared | absent
 //
 // The block removed is the top-level `work:` key with everything indented

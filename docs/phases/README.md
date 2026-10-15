@@ -1,58 +1,66 @@
-# The phases — one blueprint, four selections
+# The phases — one blueprint, two selections
 
-`repo-blueprint.yaml` declares four phases that take a site from **nothing**
+`repo-blueprint.yaml` declares two phases that take a site from **nothing**
 to **live on stage and prod, documented**. Run them one at a time with
 `--phase <name>`, or the whole sequence unattended with `--resume`. There is
 no umbrella workflow and no per-phase document: a phase is a selection on one
 artifact, which is what makes running one alone, months later, from a fresh
 container the same operation as running them all.
 
-Each phase follows the same contract:
+The product phase follows the contract every deploying phase does:
 
 > **place its modules → brand them → land them as one pull request → watch
-> the convergence that merge triggers (auto-resumed) → verify the outcome
-> over HTTP.**
+> the convergence that merge triggers (auto-resumed) → check what the
+> convergence published → verify the outcome over HTTP.**
 
 Run from the baseline checkout (the blueprint's source is `path: .`); the
 site's repository is wherever `--out` points.
 
 ## Execution order
 
-The phase number is the EXECUTION order, and each phase's `requires.phases`
-states it in the document: the engine refuses a phase whose predecessor is not
-placed, and names it.
+| phase | lands | verified by |
+|---|---|---|
+| [`01-product`](01-product.md) | **the GitHub repo created** and the whole product in ONE pull request: intent, CI, tooling, identity, the D1 root, the migrations, the site and its tests | the convergence green (D1 applied, then migrated, then the site built, deployed and smoke-tested), `WIRING_CLOUDFLARE_D1` on stage and prod, both URLs answering |
+| [`02-docs`](02-docs.md) | the live-deployment record; the promotion gate and dev's lanes put back | committed manifest matches probed reality |
+
+**One landing, not three.** Before the one-landing shape a site like this
+landed its scaffold, its data plane and its app as separate pull requests,
+because the database had to exist — and carry its schema — before the
+Worker that binds it. The plan carries that order now, per environment:
+`infra/db-migrate` declares `dependsOn: cloudflare-d1`, and `apps/web`
+declares `dependsOn` on both, each with `mode: enforced` on a push to main.
+So the convergence that follows the one merge applies the database, then
+its migrations, then deploys the site — and a job resolves its secrets when
+it starts, so the database id the apply published is there for both. On a
+pull request the edges are advisory: nothing applies or deploys.
+`testing/phases.test.sh` checks the edges; `testing/placement.test.sh`
+checks the product's own plan honours them.
 
 Every landing is a pull request on a branch named for its task
 (`orun/BASE-<n>-<phase>`). On those branches `ci.yml` runs `plan` only — the
 intent, every component and every composition resolve — and skips the lanes,
 because the merge runs them on main a minute later, for real, and that
-convergence is what the phase watches. `checks.yml` (install, typecheck, lint,
-test, build) runs on every pull request regardless.
-
-| phase | lands | verified by |
-|---|---|---|
-| [`01-scaffold`](01-scaffold.md) | **the GitHub repo created** and born: intent, CI, tooling, identity | repo pushed, workspace-linked, its PR's checks green |
-| [`02-data`](02-data.md) | `infra/terraform/cloudflare-d1`: a D1 database per environment, applied by Terraform | convergence green (plan, apply) + `WIRING_CLOUDFLARE_D1` published on stage and prod |
-| [`03-site`](03-site.md) | `apps/web` + `tests/web`, deployed to stage and prod side by side | convergence green (build, deploy, smoke) + both URLs answer |
-| [`04-docs`](04-docs.md) | the live-deployment record; the promotion gate and dev lanes put back | committed manifest matches probed reality |
+convergence is what the phase watches. `checks.yml` (install, the fixture
+render, typecheck, lint, test, build) runs on every pull request regardless,
+and the product's landing waits for it.
 
 There is no custom-domain phase. Attaching a domain to a Worker needs zone
 permissions the platform's brokered `workers-deploy` token does not carry, so
 it is an owner's step after the bootstrap — the site's README, "Custom
-domain", says how. The todo list builds no absolute links, so the domain
-needs no change in the repository.
+domain", says how. Nothing in the repository changes for it: the page
+renders no absolute link to itself.
 
 ## Inputs
 
-`01-scaffold` takes the site's identity once and writes it into the repo
-(`.rebrand/values.json`); every later phase reads it back from the placed
-tree. But the blueprint's **required** inputs — `reponame`, `productname`,
+`01-product` takes the site's identity once and writes it into the repo
+(`.rebrand/values.json`); `02-docs` reads it back from the placed tree. But
+the blueprint's **required** inputs — `reponame`, `productname`,
 `productdomain`, `githuborg` — are validated before any phase runs, so they
 must be supplied on every invocation, single-phase ones included. A
 `--values` file is easier than repeating `--set`.
 
 - `subdomain` — the workers.dev subdomain of the Cloudflare account. It is
-  in every URL the phases probe and in the origin the site is built with.
+  in every URL the phases probe.
 - `orunWorkspace` — workspace id (`ws_…`). Unset, it is the workspace the
   build runs in (`from: workspace`); with none anywhere, a placeholder that
   fails loudly rather than silently claiming another tenant's workspace.
@@ -63,8 +71,8 @@ must be supplied on every invocation, single-phase ones included. A
 
 ```bash
 orun new --blueprint repo-blueprint.yaml \
-  --out $HOME/sites/acme-notes --run-hooks --phase 03-site \
-  --values ~/acme-notes.values.yaml
+  --out $HOME/sites/acme-todos --run-hooks --phase 01-product \
+  --values ~/acme-todos.values.yaml
 ```
 
 Drop `--run-hooks` (or add `--status`) to preview. Without it a phase places
@@ -73,20 +81,24 @@ which is exactly what makes a dry instantiation of this baseline possible in
 CI with no workspace and no provider (`testing/placement.test.sh`,
 `testing/e2e.test.sh`).
 
-## What every phase does after it places
+## What the product phase does after it places
 
-Placement writes the baseline's files as they are here. Before a phase lands,
-its `post` hooks make them the site's:
+Placement writes the baseline's files as they are here. Before the phase
+lands, its `post` hooks make them the site's:
 
-1. `retouch` (deploying phases) — one `# orun: redeploy <phase> <stamp>` line
-   at the end of each component.yaml its task contract names, so a re-run
-   after a failed convergence still has a diff to land and redeploys exactly
-   those components.
-2. `rebrand` → `rebrand --verify` — the identity rename over the whole tree,
+1. `retouch` — one `# orun: redeploy 01-product <stamp>` line at the end of
+   each component.yaml its task contract names (`cloudflare-d1`, `db`,
+   `db-migrate`, `db-tests`, `web`, `web-tests`), so a re-run after a failed
+   convergence still has a diff to land and re-plans exactly those
+   components.
+2. `git init`, stage, `rebrand`, the workspace rewrite, the work-tree strip,
+   the two bootstrap deferrals (prod's promotion gate, dev's push lanes),
+   restage, `rebrand --verify` — the identity rename over the whole tree,
    then a sweep that fails on any of this baseline's identity left behind.
-3. `pnpm install --lockfile-only` from the baseline's complete lockfile —
-   pruned to the projects placed so far, so `--frozen-lockfile` installs
-   pass.
+3. `pnpm install --lockfile-only` — confirms the baseline's complete
+   lockfile against the placed tree, so `--frozen-lockfile` installs pass.
+4. `repo`, `link`, the brokered Cloudflare credentials (the deploy token,
+   the D1 token, the account id), `land`.
 
 ## When a phase fails
 
@@ -94,6 +106,7 @@ its `post` hooks make them the site's:
   link): nothing was merged. Fix what the message names and re-run the phase.
 - **After it lands** (the convergence went red): the files are on main.
   `orun.run/watch@v1` has already resumed the run up to three times. Re-run
-  the phase (`--phase 03-site`, `--redo 03-site` under `--resume`, or the
-  console's Retry): its `retouch` hook gives the landing a diff and the
-  component redeploys.
+  the phase (`--phase 01-product`, `--redo 01-product` under `--resume`, or
+  the console's Retry): its `retouch` hook gives the landing a diff and the
+  D1 root, the migrations and the site re-plan. Migrations already applied
+  are recorded and skipped.

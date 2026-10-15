@@ -8,7 +8,7 @@ metadata:
   key: TU
 spec:
   title: "Vercel's Next.js + Turso starter on Cloudflare Workers with D1"
-  summary: "The Vercel Next.js + Turso starter — a todo list whose server actions insert and delete rows through the libSQL client, creating its table on first use — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with the todos in a Cloudflare D1 database provisioned by Terraform through Orun, inside the Cirrus baseline's repository conventions. Turso and D1 are both SQLite, so the SQL does not change: lib/turso.ts keeps the client's execute() shape over the D1 binding and every query stays as written."
+  summary: "The Vercel Next.js + Turso starter — a todo list whose server actions insert and delete rows through the libSQL client, creating its table on first use — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with the todos in a Cloudflare D1 database provisioned by Terraform through Orun, inside the Cirrus baseline's repository conventions. Turso and D1 are both SQLite, so the SQL does not change: lib/turso.ts keeps the client's execute() shape over the D1 binding and every query stays as written. Since TU5 the table the template created on first use is a migration, applied by db-migrate between the database's apply and the Worker's deploy."
   state: started
   milestones:
     - name: "TU0 — the spec"
@@ -37,3 +37,10 @@ spec:
         - "a site built from it carries the site only, renamed throughout to its own name, repository, database and Worker"
         - "Baseline CI is green: contract tests, the blueprint read by the pinned orun, the leak gate, the offline bootstrap and the end-to-end tier (a todo round-tripped through a local D1)"
       tasks: [TU-5]
+    - name: "TU5 — a baseline, in one landing"
+      exitCriteria:
+        - "blueprint.yaml (the console card) and repo-blueprint.yaml (the build) take a new todo list from nothing to live on stage and prod in ONE landing (01-product) and a hook-only record (02-docs), replacing TU4's four phases"
+        - "the schema is a migration: packages/db's runner, run by an infra/db-migrate component, creates the todos table the page used to create on first use"
+        - "the product's own push-to-main plan applies cloudflare-d1, then db-migrate, then deploys web, per environment, and the landing's await finds WIRING_CLOUDFLARE_D1 on stage and prod"
+        - "Baseline CI is green: contract tests, the blueprint read by the pinned orun, the leak gate, the offline bootstrap and the end-to-end tier (the migration lane applied against a stand-in D1 API, a todo round-tripped through a local D1)"
+      tasks: [TU-6]

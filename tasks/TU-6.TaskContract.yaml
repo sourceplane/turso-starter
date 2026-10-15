@@ -1,0 +1,40 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+metadata:
+  name: TU-6
+  title: "A baseline, in one landing"
+spec:
+  goal: The repository is an Orun baseline built the cirrus-baseline v22 way — a card and a build document that take a new todo list from nothing to live on stage and prod in ONE landing, the D1 database applied, then migrated, then the Worker that binds it deployed, branded as its own, with gates that prove it offline
+  affects:
+    - blueprint.yaml
+    - repo-blueprint.yaml
+    - BOOTSTRAP.md
+    - README.md
+    - .baseline/**
+    - tooling/rebrand/**
+    - tooling/bootstrap/**
+    - tooling/wire/**
+    - tooling/migrations/**
+    - hooks/**
+    - testing/**
+    - docs/phases/**
+    - ai/context/**
+    - .github/workflows/**
+    - .gitignore
+    - intent.yaml
+    - pnpm-lock.yaml
+    - apps/web/**
+    - packages/db/**
+    - infra/db-migrate/**
+    - infra/terraform/cloudflare-d1/**
+    - tests/web/**
+    - tests/db/**
+    - specs/**
+    - tasks/**
+  doneWhen:
+    - orun (the bootstrap floor, the lane pin and the current CLI) reads repo-blueprint.yaml, and the card agrees with it
+    - the product's own push-to-main plan runs cloudflare-d1, then db-migrate, then web, on stage and prod, and a pull request waits on nothing
+    - the leak gate, the wiring contract, the offline bootstrap and the end-to-end tier are green in Baseline CI
+    - the as-built status records the departures and what is not yet proven live
+  gates:
+    - checks

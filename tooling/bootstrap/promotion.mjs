@@ -10,10 +10,10 @@
 // is watched to green before the next one starts) and it doubles the length
 // of every convergence: each worker's prod deploy waits out its stage deploy.
 //
-// So 01-scaffold defers the gate and 04-docs, the last landing, puts it back:
+// So 01-product defers the gate and 02-docs, the last landing, puts it back:
 //
-//   node tooling/bootstrap/promotion.mjs --defer     # 01-scaffold, before the first landing
-//   node tooling/bootstrap/promotion.mjs --restore   # 04-docs, the last landing
+//   node tooling/bootstrap/promotion.mjs --defer     # 01-product, before the first landing
+//   node tooling/bootstrap/promotion.mjs --restore   # 02-docs, the last landing
 //   node tooling/bootstrap/promotion.mjs --check     # prints deferred | enforced
 //
 // --defer replaces the prod `promotion:` block with one marker comment that
@@ -23,9 +23,9 @@
 // `watch`, the default) maps to no component: the landing that restores it
 // deploys nothing.
 //
-// The gate is deferred, never dropped: a bootstrap that stops before 04-docs
-// leaves the marker in intent.yaml, and `--restore` (or a re-run of 04-docs)
-// is the whole fix. docs/phases/04-docs.md says so.
+// The gate is deferred, never dropped: a bootstrap that stops before 02-docs
+// leaves the marker in intent.yaml, and `--restore` (or a re-run of 02-docs)
+// is the whole fix. docs/phases/02-docs.md says so.
 
 import * as fs from "node:fs";
 

@@ -1,11 +1,11 @@
-# 04-docs — the deployment, recorded
+# 02-docs — the deployment, recorded
 
-**Places** nothing. Its work is hooks: it records what `03-site` built, from
-probed facts rather than from what the blueprint intended, and it puts back
-the two things `01-scaffold` deferred for the bootstrap's sake.
+**Places** nothing. Its work is hooks: it records what `01-product` built,
+from probed facts rather than from what the blueprint intended, and it puts
+back the two things `01-product` deferred for the bootstrap's sake.
 
-**Requires** `03-site` placed. (A hook-only phase derives as `unknown`, so no
-phase may require this one.)
+**Requires** `01-product` placed. (A hook-only phase derives as `unknown`, so
+no phase may require this one.)
 
 ## What runs
 
@@ -14,9 +14,9 @@ phase may require this one.)
 | `task` (pre) | finds the phase's task and yields its key |
 | `promotion` | restores `environments.prod.promotion` — from now on prod deploys only after stage |
 | `dev-lanes` | restores dev's activation on pushes to main |
-| `render` | `hooks/render-deployment-docs.sh`: probes `/` on both environments, lists the secrets by name and the workspace's integrations, and regenerates `ai/context/deployment.md` and the README's live-deployment section |
+| `render` | `hooks/render-deployment-docs.sh`: probes `/` on both environments (and whether each page rendered its D1-backed list), lists the secrets by name and the workspace's integrations, and regenerates `ai/context/deployment.md` and the README's live-deployment section |
 | `land` | one PR, waited for and merged. It touches no component, so it deploys nothing |
-| `verify` (await) | the same probe `03-site` ended on |
+| `verify` (await) | the same probe `01-product` ended on |
 
 ## Re-running it
 
@@ -25,7 +25,7 @@ domain: every generated section is re-rendered from scratch.
 
 ```bash
 orun new --blueprint repo-blueprint.yaml --out <site-checkout> \
-  --run-hooks --phase 04-docs --values <values.yaml>
+  --run-hooks --phase 02-docs --values <values.yaml>
 ```
 
 ## If a bootstrap stops before this phase

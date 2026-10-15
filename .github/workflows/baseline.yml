@@ -2,9 +2,11 @@ name: Baseline CI
 
 # THE FACTORY'S OWN LANES — this repository tested as a BASELINE: that its
 # build document parses with the orun a bootstrap actually runs, that its card
-# agrees with it, that every component is placed by exactly one phase, that a
-# placed tree comes up branded and carrying nothing of the factory, and that
-# the site it produces installs, builds, deploys (dry) and serves.
+# agrees with it, that every component is placed by the one product phase,
+# that the D1 database's wiring reaches the Worker's config, that a placed
+# tree comes up branded and carrying nothing of the factory — and plans the
+# database, then its migrations, then the Worker on a merge — and that the
+# product it produces installs, builds, migrates, deploys (dry) and serves.
 #
 # ─── WHY THIS IS NOT IN ci.yml OR checks.yml ──────────────────────────────
 #
@@ -41,11 +43,11 @@ jobs:
           # names a packageManager, and then fails on a runner with no pnpm.
           # This job installs nothing.
           package-manager-cache: false
-      - name: Contract tests (manifest, phases, coverage, rebrand, retouch, bootstrap-defer)
+      - name: Contract tests (manifest, phases, coverage, rebrand, retouch, bootstrap-defer, wire)
         run: |
           set -euo pipefail
           python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
-          for t in manifest phases coverage rebrand retouch bootstrap-defer; do
+          for t in manifest phases coverage rebrand retouch bootstrap-defer wire; do
             echo "── $t"
             bash "testing/$t.test.sh"
           done
@@ -57,10 +59,11 @@ jobs:
   # only the pinned orun can say whether the document is one a bootstrap can
   # run. `--status` parses it, validates every hook against the action
   # registry, compiles every `when` and narration template, and writes
-  # nothing. Then the leak gate (what a site would carry) and the placement
-  # tier (the offline bootstrap: every phase placed and finished by the
-  # blueprint's own hooks, then the site's own `orun plan` for the 03-site
-  # merge).
+  # nothing. Then the leak gate (what a product would carry, derived by the
+  # floor too), and the placement tier (the offline bootstrap: both phases
+  # placed and finished by the blueprint's own hooks, then the product's own
+  # `orun plan` for the 01-product merge — the D1 apply, then the migrations,
+  # then the Worker's deploy — under the product's lane pin, below).
   blueprint:
     runs-on: ubuntu-latest
     steps:
@@ -83,23 +86,35 @@ jobs:
           # values are arbitrary and nothing is written.
           orun new --blueprint repo-blueprint.yaml --status \
             --out "$(mktemp -d)" \
-            --set reponame=acme-notes \
-            --set "productname=Acme Notes" \
+            --set reponame=acme-todos \
+            --set "productname=Acme Todos" \
             --set productdomain=acme.dev \
             --set githuborg=acme-inc
-      - name: the leak gate — what a site carries
+      - name: the leak gate — what a product carries
         run: bash testing/leak.test.sh
-      - name: placement — the offline bootstrap, and the site's own plan
+      # The placement tier ENDS with the product's own `orun plan` — what the
+      # product's ci.yml runs — so it runs under the product's lane pin, not
+      # the bootstrap floor. v2.58.11 plans a pull request with apps/web
+      # waiting on the D1 and migration plans: it does not apply a dependsOn
+      # edge's `modeRules`. The lane pin does (advisory on a PR, enforced on main),
+      # and the test refuses an orun older than the pin rather than assert
+      # the wrong CLI's plan. Its placements are valid under either.
+      - uses: sourceplane/orun-action@v1.2.0
+        with:
+          version: v2.78.4
+      - name: placement — the offline bootstrap, and the product's own plan
         run: |
           git config --global user.email ci@example.invalid
           git config --global user.name "baseline ci"
           bash testing/placement.test.sh
 
-  # Tier 2. THE SITE IT PRODUCES WORKS: the scaffold's landing and the
-  # finished site under the checks their pull requests wait on, the stage
-  # lane's own build, output check and dry deploy, and the built Worker served
-  # and smoke-tested with the component's own smoke command. Pinned at the
-  # site's lane version, because that is the orun the site's CI runs.
+  # Tier 2. THE PRODUCT IT PRODUCES WORKS: its one landing under the checks
+  # its pull request waits on, the stage lane's own structure check, build
+  # (the live wiring render included), output check and dry deploy in the tree
+  # orun stages, the migration lane's plan and apply (against a stand-in D1
+  # API), and the built Worker served and smoke-tested with the component's
+  # own smoke command. Pinned at the product's lane version,
+  # because that is the orun the product's CI runs.
   site:
     runs-on: ubuntu-latest
     steps:
@@ -114,7 +129,7 @@ jobs:
         with:
           node-version: 22
           cache: pnpm
-      - name: e2e — the bootstrapped site builds, deploys (dry) and serves
+      - name: e2e — the bootstrapped product builds, deploys (dry) and serves
         run: |
           python3 -c 'import yaml' 2>/dev/null || pip install --quiet pyyaml
           git config --global user.email ci@example.invalid
