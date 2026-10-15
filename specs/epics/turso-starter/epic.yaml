@@ -9,7 +9,7 @@ metadata:
 spec:
   title: "Vercel's Next.js + Turso starter on Cloudflare Workers with D1"
   summary: "The Vercel Next.js + Turso starter — a todo list whose server actions insert and delete rows through the libSQL client, creating its table on first use — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with the todos in a Cloudflare D1 database provisioned by Terraform through Orun, inside the Cirrus baseline's repository conventions. Turso and D1 are both SQLite, so the SQL does not change: lib/turso.ts keeps the client's execute() shape over the D1 binding and every query stays as written."
-  state: completed
+  state: started
   milestones:
     - name: "TU0 — the spec"
       exitCriteria:
@@ -31,3 +31,9 @@ spec:
         - "the README says how to run, test, preview and deploy it"
         - "the as-built status records every departure from the upstream template"
       tasks: [TU-4]
+    - name: "TU4 — a baseline"
+      exitCriteria:
+        - "blueprint.yaml (the console card) and repo-blueprint.yaml (the build) take a new todo list from nothing to live on stage and prod in four phases, its D1 database applied by Terraform before the site deploys"
+        - "a site built from it carries the site only, renamed throughout to its own name, repository, database and Worker"
+        - "Baseline CI is green: contract tests, the blueprint read by the pinned orun, the leak gate, the offline bootstrap and the end-to-end tier (a todo round-tripped through a local D1)"
+      tasks: [TU-5]

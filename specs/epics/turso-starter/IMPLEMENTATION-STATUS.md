@@ -9,8 +9,17 @@ the code departed from `design.md` or from the upstream template.
 | TU1 — the todos on D1 | ✅ Shipped | [#2](https://github.com/sourceplane/turso-starter/pull/2) |
 | TU2 — the D1 database from Terraform | ✅ Shipped (validated; apply gated on a linked workspace) | [#3](https://github.com/sourceplane/turso-starter/pull/3) |
 | TU3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/turso-starter/pull/4) |
+| TU4 — a baseline | 🟡 In review | this PR |
 
 ## Departures from the upstream template
+
+### The site's name and source link live in `lib/site.ts` (TU4)
+
+Upstream's page is headed "Turso" (the port's: "D1") and titled
+"Next.js + Turso". Both now read `SITE_NAME`, and a "source" link under the
+heading reads `SOURCE_URL`, so the rename can make a copy somebody else's in
+two literals. Upstream's `apps/web/README.md` (Turso setup) is replaced by
+one about this site.
 
 ### `lib/turso.ts` speaks to D1
 
@@ -48,6 +57,20 @@ The template floated `next: latest` with React 18 and `eslint-config-next 14`.
   linked to an Orun workspace with a Cloudflare connection whose token can
   mint the D1 scope (`ORUN_CI`); the form's server actions in a browser
   (they are exercised by the tests).
+
+## Verified (TU4)
+
+- Locally, orun 2.75.0: `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer}.test.sh`,
+  `testing/leak.test.sh`, `testing/placement.test.sh` (the offline bootstrap of
+  `acme-todos`, "Sam's Notes & Links", all four phases; the D1 root and the
+  site's D1 wiring re-tenanted; the site's own `orun plan` at `03-site`) and
+  `testing/e2e.test.sh` (that site's Checks; its stage lane's build — with the
+  wiring document the runner would resolve — verify and dry-run deploy in the
+  staged tree; `wrangler dev`; the component's own smoke; a todo added,
+  listed and removed through D1) all green; the repository's own
+  `pnpm typecheck`, `lint`, `test` and `build` green.
+- Not verified: a live bootstrap (risks TU-E), and orun at the CI pins
+  (v2.58.11 and v2.78.4) — Baseline CI runs both on this pull request.
 
 ## Versions
 

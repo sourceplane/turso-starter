@@ -3,7 +3,7 @@ kind: Component
 
 metadata:
   name: cloudflare-d1
-  description: Provisions the Cloudflare D1 platform database for stage and prod
+  description: Provisions the Cloudflare D1 todos database for stage and prod
   labels:
     domain: infra
     scope: runtime-database
@@ -19,6 +19,7 @@ spec:
     stackName: cloudflare-d1
     terraformDir: terraform
     terraformVersion: "1.15.3"
+    repo: turso-starter
     # SEC-JOB: the wiring document (database id/name) is lease-published
     # post-apply; worker deploys read it back as WIRING_CLOUDFLARE_D1_<ENV>,
     # and db-migrate reads it to find the database it migrates.
