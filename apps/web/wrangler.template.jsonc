@@ -1,0 +1,25 @@
+// Rendered to wrangler.jsonc (git-ignored) by tooling/wire: the verify lane
+// renders from wiring.fixture.json, the deploy lane from the wiring document
+// the `cloudflare-d1` Terraform root lease-publishes (WIRING_CLOUDFLARE_D1_<ENV>).
+// The workers-assets composition deploys one environment per job with no
+// wrangler `--env`, so `__ENV__` names the environment this is rendered for.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "turso-starter-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": { "enabled": true },
+  // The todos' database — Cloudflare D1 in place of Turso (both SQLite).
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "@@wiring(cloudflare-d1/__ENV__:d1_database_name)@@",
+      "database_id": "@@wiring(cloudflare-d1/__ENV__:d1_database_id)@@"
+    }
+  ]
+}

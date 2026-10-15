@@ -1,0 +1,74 @@
+apiVersion: sourceplane.io/v1
+kind: Component
+metadata:
+  name: web
+  description: The todo list (Next.js on Cloudflare Workers + Static Assets via @opennextjs/cloudflare, per environment)
+spec:
+  type: cloudflare-workers-assets-turbo
+  lifecycle: production
+  owner: platform
+  domain: web
+  path: apps/web
+  # Its own lane per environment: the Next.js build is the longest job in the
+  # plan, and a shared lane would wait on it.
+  lane: isolated
+  # The D1 database must exist before this deploys: its id and name are
+  # rendered into the wrangler config from the cloudflare-d1 root's wiring
+  # document.
+  dependsOn:
+    - component: cloudflare-d1
+  secretEnv:
+    WIRING_CLOUDFLARE_D1_STAGE: "secret://turso-starter/turso-starter/stage/WIRING_CLOUDFLARE_D1"
+    WIRING_CLOUDFLARE_D1_PROD: "secret://turso-starter/turso-starter/prod/WIRING_CLOUDFLARE_D1"
+  subscribe:
+    environments:
+      - name: dev
+        profile: verify
+      - name: stage
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+      - name: prod
+        profile: verify
+        profileRules:
+          - profile: deploy
+            when:
+              triggerRef: github-push-main
+  parameters:
+    nodeVersion: "22"
+    pnpmVersion: "10.12.1"
+
+    workspaceDir: ../..
+    appDir: .
+
+    turboFilter: "@app/web"
+    wranglerConfig: wrangler.jsonc
+
+    # @opennextjs/cloudflare emits a Worker entrypoint plus a static-assets
+    # directory bound via ASSETS — both deploy in one `wrangler deploy`.
+    workerEntrypoint: .open-next/worker.js
+    assetsDir: .open-next/assets
+
+    # Per-env worker name: turso-starter-web-{dev,stage,prod}.
+    workerName: turso-starter-web
+    environmentAwareWorkerName: true
+
+    # The account's workers.dev subdomain; exported to the smoke step as
+    # ${WORKERS_DEV_SUBDOMAIN} and used to build ${DEPLOYED_URL}.
+    workersDevSubdomain: your-workers-subdomain
+
+    installCommand: pnpm install --frozen-lockfile
+    # Render this environment's wrangler config from the wiring document, then
+    # build (the verify lane already rendered from the fixture through
+    # `wire:fixture`; a deploy lane re-renders with the real database id).
+    buildCommand: node ../../tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-d1 --env "${ORUN_ENVIRONMENT}" && pnpm exec turbo run build --filter=@app/web
+
+    # Smoke: the home page renders and carries the app's marker text.
+    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -q 'Insert new todo'"
+  labels:
+    team: platform
+    layer: delivery
+    surface: web
+    runtime: cloudflare
