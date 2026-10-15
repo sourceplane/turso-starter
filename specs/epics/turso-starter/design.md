@@ -18,6 +18,7 @@ each `Todo` calls `removeTodo` (`DELETE … WHERE id = ?`); both
 | `TURSO_DB_URL` / `TURSO_DB_TOKEN` | No env vars: the database's id and name are rendered into `wrangler.jsonc` from the `cloudflare-d1` root's wiring document |
 | `file:./dev.db` for local work | `wrangler dev` / `next dev` (through `initOpenNextCloudflareForDev()`) provide a local SQLite behind the same binding |
 | A Turso database created with its CLI | `infra/terraform/cloudflare-d1`: one database per environment, id and name published as the `WIRING_CLOUDFLARE_D1` secret |
+| The table created on the first render (`findOrCreateTodosTable`) | since TU5: `packages/db/src/migrations/010_todos` (the same statement, `IF NOT EXISTS`), applied by `infra/db-migrate` over the D1 REST API between the apply and the deploy |
 | Deploy on push | Orun: `apps/web/component.yaml` renders the config for `$ORUN_ENVIRONMENT`, builds, and deploys `turso-starter-web-{stage,prod}` on merge to `main` once the product is linked |
 
 D1 versus Turso for this template: both are SQLite; `AUTOINCREMENT`,
@@ -41,56 +42,84 @@ from `wiring.fixture.json`, the deploy lane from `WIRING_CLOUDFLARE_D1_<ENV>`.
 ```
 apps/web                      the template (app/, lib/) + the Workers build
   lib/turso.ts                the execute() shape over the DB binding (the one changed file)
+  lib/site.ts                 the site's name and source link (TU4: the rename seam)
   wrangler.template.jsonc     worker name, nodejs_compat, ASSETS, the DB binding as wiring tokens
+  wrangler.jsonc              the fixture render, committed (TU5)
   cloudflare-env.d.ts         the bindings' types
 infra/terraform/cloudflare-d1 the database per environment (Cirrus's root)
-tests/web                     vitest: the client, the list's first-run create, the actions
+packages/db (@saas/db)        the schema as migrations + Cirrus's D1 REST runner (TU5)
+infra/db-migrate              runs it: plans on a pull request, applies on a merge (TU5)
+tooling/migrations            the manifest's checksum check, the local-D1 apply
+tests/web                     vitest: the client, the list, the actions
+tests/db                      vitest: the migrations through the runner, into real SQLite (TU5)
 ```
 
 ## 5. Out of scope
 
-Migrations (Cirrus's `packages/db` + `db-migrate` when a product outgrows
-"create on first use"), auth, and a custom domain.
+Auth, and a custom domain. (Migrations were out of scope until TU5 made the
+schema part of the one convergence.)
 
-## 6. The baseline (TU4)
+## 6. The baseline (TU5 — in one landing)
 
-The repository instantiates new todo lists the way
-[portfolio-starter-kit](https://github.com/sourceplane/portfolio-starter-kit)
-instantiates sites — a console card (`blueprint.yaml`), a build document
-(`repo-blueprint.yaml`) `orun new` runs, and a rename engine that makes the
-copy somebody else's. The two repositories share every file outside the app
-and the database, so the machinery is portfolio-starter-kit's PK3 plus what
-its first live bootstrap found (PK-5) — stack-tectonic 0.19.0, `checks.yml`
-on pull requests only — with the names changed. What is this repository's
-own is the database, and it takes a phase:
+TU4 made the repository a baseline the portfolio-starter-kit way, in four
+phases (`01-scaffold`, `02-data`, `03-site`, `04-docs`): the database had a
+phase of its own so that `03-site`'s precondition — the wiring document — was
+a fact `02-data` had verified. TU5 rebuilds it the way
+[cirrus-baseline](https://github.com/sourceplane/cirrus-baseline) builds a
+product since `baseline-v22`, and the D1 order is carried by the plan
+instead. The machinery is `kv-redis-starter`'s (KR4), with the names
+changed; what is this repository's own is the database and, now, its schema.
 
-| Phase | Lands | From |
+| | TU4 | here (TU5) |
 |---|---|---|
-| `01-scaffold` | the repository, CI, tooling (incl. `tooling/wire`), identity | portfolio-starter-kit, unchanged |
-| `02-data` | `infra/terraform/cloudflare-d1`; mints `CLOUDFLARE_D1_TOKEN` (`d1-edit`) and `CLOUDFLARE_ACCOUNT_ID`; verifies `WIRING_CLOUDFLARE_D1` on stage and prod | virga's `03-infrastructure`, without KV |
-| `03-site` | `apps/web` + `tests/web`; mints `CLOUDFLARE_API_TOKEN` (`workers-deploy`) | portfolio-starter-kit's `02-site`, now requiring `02-data` |
-| `04-docs` | the deployment record, the promotion gate and dev lanes put back | portfolio-starter-kit's `03-docs` |
+| phases | `01-scaffold`, `02-data`, `03-site`, `04-docs` | `01-product` (everything, one PR), `02-docs` (hook-only) |
+| the order a landing used to hold | the database before the site | the database, then its schema, then the Worker |
+| how the plan holds it | — | `infra/db-migrate` `dependsOn: cloudflare-d1`; `apps/web` `dependsOn` both; `mode: enforced`, `modeRules` advisory on `github-pull-request` |
+| the schema | created on first render | `packages/db` migrations, applied by `db-migrate` |
+| brokered secrets | `CLOUDFLARE_D1_TOKEN` + account id in `02-data`, `CLOUDFLARE_API_TOKEN` in `03-site` | all three in `01-product`, before the landing |
+| the landing's await | per phase | watch, `WIRING_CLOUDFLARE_D1` exists on stage and prod, probe |
 
-**Why a phase of its own, before the site.** `apps/web/component.yaml`
-dependsOn `cloudflare-d1`, and its build renders the database's id from
-`WIRING_CLOUDFLARE_D1_<ENV>` (`tooling/wire/live.mjs` fails loudly when it
-is missing). Landing both in one phase would deploy the site in the same
-convergence that first creates the database; landing the database first
-makes `03-site`'s precondition a fact `02-data` verified
-(`orun.secrets/exists@v1`), and gives a failed apply — most often a token
-without D1 Write — a phase, a message and a re-run of its own.
+**One landing.** `01-product` places every module, brands the tree, and
+lands it as one pull request whose checks it waits for (Checks: install, the
+fixture render, typecheck, lint, test, build). The convergence after the
+merge plans, per environment, `cloudflare-d1` (apply, level 0), `db-migrate`
+(apply, level 1) and `web` (deploy, level 2): a job resolves its secrets
+when it starts, so the migrations find `WIRING_CLOUDFLARE_D1` and the build
+finds `WIRING_CLOUDFLARE_D1_<ENV>`. Stage and prod run side by side (the
+promotion gate is deferred until `02-docs`), and dev's push lanes are
+deferred too. The landing then waits on the convergence
+(`orun.run/watch@v1`), asks the platform that the wiring exists on both
+environments (`orun.secrets/exists@v1`), and probes both URLs. `02-docs`
+places nothing: it restores the two deferrals, renders the deployment record
+and lands it.
 
-**Departures from portfolio-starter-kit, and why:**
+**The schema.** stack-tectonic's `db-migrate` composition builds a package
+named `@saas/db` and runs its `dist/runner/cli.js plan|apply` from the
+component's path (`packages/db/src/migrations`) — hence the package's name,
+which is the composition's contract, not this repository's scope. The
+runner is Cirrus's: a manifest of migrations with their checksums, a
+`_migrations_applied` ledger and a lock row in the database itself, and each
+statement sent to `POST /accounts/{account}/d1/database/{id}/query` with the
+D1 token (`d1-edit`; the deploy token cannot touch D1). On a pull request it
+plans offline — every checksum verified, nothing sent. `CLOUDFLARE_API_BASE_URL`
+(wrangler's own override) points it at another endpoint, which is how the
+e2e tier runs the lane's real apply step offline. Locally,
+`pnpm --filter @app/web db:migrate:local` applies the same files to
+wrangler's local D1 with `wrangler d1 execute --local`.
 
-| portfolio-starter-kit | Here | Why |
-|---|---|---|
-| `intent.yaml` drops the Terraform `parameterDefaults` | kept | the D1 root reads them; the component also names `repo` (as virga's does) |
-| `NEXT_PUBLIC_SITE_URL`, `SITE_URL` per environment | none | the page builds no absolute link; a custom domain needs no change in the repository |
-| `apps/web/app/site.ts`: `SITE_NAME`, `SOURCE_URL`, `escapeXml` | `apps/web/lib/site.ts`: `SITE_NAME`, `SOURCE_URL` | the page's heading and title; a "source" link under the heading (upstream had none) |
-| smoke: the nav's `/blog` link, `/rss` is a feed | smoke: the page renders the todo form | it only renders after reading D1 |
-| e2e reads `/blog`, `/rss`, `/sitemap.xml`, `/og` | e2e adds, lists and removes a todo through the page's own server actions (`testing/lib/server-action.mjs`, React's own reply encoder) against wrangler dev's local D1 | the site's one promise is that the store works |
-| product name `My Portfolio`, epic `portfolio-baselining` | `My Todos`, `todos-baselining` | |
-| upstream's `apps/web/README.md` | rewritten | upstream's tells the reader to create a Turso database and set `TURSO_DB_URL`, which this site does not use |
+**The smoke** reads `/` and requires `data-todos="N"`, which the list renders
+only after selecting from the migrated table: the binding, the schema and the
+Worker, proven by one read, with nothing written to prod.
 
-`tooling/migrations` stays in this repository and does not ship: nothing
-references it (the list creates its table on first use, risks TU-A).
+**Identity in the app** stays TU4's `apps/web/lib/site.ts` (`SITE_NAME`,
+`SOURCE_URL`); the slug also names the D1 databases (`stg-<slug>-stage`)
+through terraform's `repo` and the migration runner's `repo` parameter. No
+`SITE_URL`: the page renders no absolute link to itself.
+
+**Testing without the platform.** `testing/lib/bootstrap.sh` places both
+phases and runs the blueprint's own `run:` hooks; `testing/placement.test.sh`
+plans the product's own merge (the three levels) and a pull request (nothing
+waits); `testing/wire.test.sh` holds the wiring path together;
+`testing/e2e.test.sh` builds the product in the trees orun stages, runs the
+migration lane against `testing/lib/d1-api.py` (a stand-in for D1's REST API
+over real SQLite), dry-deploys, serves it and runs its smoke.

@@ -12,11 +12,27 @@ spec:
   # Its own lane per environment: the Next.js build is the longest job in the
   # plan, and a shared lane would wait on it.
   lane: isolated
-  # The D1 database must exist before this deploys: its id and name are
-  # rendered into the wrangler config from the cloudflare-d1 root's wiring
-  # document.
+  # INFRA BEFORE APP. The Worker binds the D1 database by id, and the id is
+  # rendered into its config during the build from the wiring document the
+  # cloudflare-d1 root lease-publishes after its apply; and the page reads the
+  # `todos` table, which db-migrate creates in that database. A job resolves
+  # its secrets when it STARTS, so on a merge to main this deploy waits for
+  # both (enforced) — one convergence runs cloudflare-d1 → db-migrate → web
+  # per environment, and the document and the schema are there. A pull request
+  # deploys nothing, so nothing on one waits (advisory).
   dependsOn:
     - component: cloudflare-d1
+      mode: enforced
+      modeRules:
+        - mode: advisory
+          when:
+            triggerRef: github-pull-request
+    - component: db-migrate
+      mode: enforced
+      modeRules:
+        - mode: advisory
+          when:
+            triggerRef: github-pull-request
   secretEnv:
     WIRING_CLOUDFLARE_D1_STAGE: "secret://turso-starter/turso-starter/stage/WIRING_CLOUDFLARE_D1"
     WIRING_CLOUDFLARE_D1_PROD: "secret://turso-starter/turso-starter/prod/WIRING_CLOUDFLARE_D1"
@@ -60,13 +76,22 @@ spec:
     workersDevSubdomain: your-workers-subdomain
 
     installCommand: pnpm install --frozen-lockfile
-    # Render this environment's wrangler config from the wiring document, then
-    # build (the verify lane already rendered from the fixture through
-    # `wire:fixture`; a deploy lane re-renders with the real database id).
-    buildCommand: node ../../tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-d1 --env "${ORUN_ENVIRONMENT}" && pnpm exec turbo run build --filter=@app/web
+    # Render this environment's wrangler config, then build. stage and prod
+    # render from the wiring document their cloudflare-d1 apply published
+    # (secretEnv above, resolved before the job's first step); dev, which no
+    # root applies to and which only verifies, renders from the committed
+    # fixture. The committed wrangler.jsonc (the fixture render) is what the
+    # composition's verify-app-structure step finds before this runs.
+    buildCommand: node ../../tooling/wire/live.mjs --template wrangler.template.jsonc --out wrangler.jsonc --components cloudflare-d1 --env "${ORUN_ENVIRONMENT}" --fixture wiring.fixture.json --fixture-envs dev && pnpm exec turbo run build --filter=@app/web
 
-    # Smoke: the home page renders and carries the app's marker text.
-    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -q 'Insert new todo'"
+    # Smoke: the page renders its list's row count (`data-todos="N"`) — which
+    # only the Worker can, by querying the `todos` table in its DB binding, so
+    # it proves the database bound, the migrations applied and the Worker
+    # serving. Not the site's name: that is the owner's to change, and
+    # HTML-escaped when it carries an `&` or `'`. Read-only: a smoke on every
+    # deploy must not write todos into prod. The response is buffered before
+    # grep so an early match cannot SIGPIPE curl.
+    smokeCommand: "html=$(curl -sfL \"${DEPLOYED_URL}/\") && echo \"${html}\" | grep -Eq 'data-todos=\"[0-9]+\"'"
   labels:
     team: platform
     layer: delivery

@@ -1,5 +1,5 @@
-# The turso-starter card: what the console's Blueprints page renders
-# and the platform's bootstrap door consumes.
+# The turso-starter card: what the console's Blueprints page renders and
+# the platform's bootstrap door consumes.
 #
 # THIS FILE IS NOT THE BUILD. `spec.bootstrap.blueprint` names the build
 # document — `repo-blueprint.yaml`, whose phases a runner places. This card is
@@ -18,12 +18,13 @@ metadata:
   name: turso-starter
   displayName: D1 Todos Starter — a todo list on Cloudflare Workers and D1
   description: >
-    Vercel's Next.js + Turso starter as a product of its own, with the todos
-    in Cloudflare D1 instead of Turso: a todo list whose server actions write
-    to SQLite, one D1 database per environment from Terraform, built by
-    OpenNext into one Cloudflare Worker with Static Assets,
-    and CI that deploys it to stage and prod on merge. One provider, one
-    consent, one token. Live in about twenty minutes.
+    Vercel's Next.js + Turso starter as a product of its own: a todo list
+    whose server actions insert and delete rows in SQLite, built by OpenNext
+    into one Cloudflare Worker with Static Assets, the todos in a Cloudflare
+    D1 database Terraform provisions per environment, its schema applied by
+    db-migrate, and CI that applies the database, migrates it and deploys the
+    site to stage and prod on merge. One provider, one consent. Live in about
+    fifteen minutes, in one landing.
   tags: [todos, d1, sqlite, cloudflare, nextjs]
 spec:
   source:
@@ -33,19 +34,21 @@ spec:
   # ── What the operator reads first ────────────────────────────────────────
   overview:
     lede: >
-      A todo list on Cloudflare alone: Next.js server actions over SQLite in
-      D1. No external database account — the binding is the credential.
+      The smallest Cloudflare app with a database: a Next.js todo list whose
+      server actions write to D1. Merge, and the database is applied, then
+      migrated, then the Worker that binds it is deployed.
     architecture:
       - layer: Edge
         items: [web]
       - layer: Data
-        items: [D1 per environment, Terraform]
+        items: [Cloudflare D1 (cloudflare-d1), migrations (db-migrate)]
       - layer: Delivery
-        items: [GitHub Actions, OpenNext]
+        items: [GitHub Actions, OpenNext, Terraform]
     outcome:
-      - Live on stage and prod
+      - Live on stage and prod, in one landing
+      - The D1 database applied and migrated before the Worker that binds it
       - Every merge redeploys, smoke-tested
-      - Its own CI from the first phase
+      - Its own CI from the first commit
 
   requires:
     # Cloudflare is the only provider connection a bootstrap needs. GitHub
@@ -69,8 +72,8 @@ spec:
     - key: productname
       label: Site name
       pattern: "^[A-Za-z0-9][A-Za-z0-9 .,'&-]{1,48}$"
-      help: The name visitors see — the heading and the page title.
-      example: Acme Notes
+      help: The name visitors see — the page's heading and its title.
+      example: Acme Todos
     - key: productdomain
       label: Site domain
       pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$"
@@ -91,20 +94,22 @@ spec:
       example: acme
 
   # ── PREVIEW ONLY. repo-blueprint.yaml's `orun.integrations/reconcile@v1`
-  # hooks mint these, brokered, during 03-site. ─────────────────────────────
+  # hooks mint these, brokered, during 01-product. ─────────────────────────
   # Transcribed from those hooks' own `keys:` and `template:` values, so
   # testing/manifest.test.sh compares this list to the document that mints
   # them. The console renders them read-only: no credential is ever typed,
-  # shown or stored. Keys that already exist are kept.
+  # shown or stored. Keys that already exist are kept. The D1 database ids
+  # are not here: they are not credentials, and the database's own apply
+  # publishes them.
   secrets:
     - key: CLOUDFLARE_API_TOKEN
       provider: cloudflare
       template: workers-deploy
-      why: Deploys the site's Worker and its static assets
+      why: Deploys the Worker and its static assets
     - key: CLOUDFLARE_D1_TOKEN
       provider: cloudflare
       template: d1-edit
-      why: Terraform creates the D1 database — the deploy token deliberately cannot touch it
+      why: Applies the D1 database and runs its migrations (the deploy token cannot touch D1)
     - key: CLOUDFLARE_ACCOUNT_ID
       provider: cloudflare
       template: account-id
@@ -116,13 +121,14 @@ spec:
   # the first phase places. Idempotent by identity, so a re-run finds what it
   # made before.
   programme:
-    epicSlug: todos-baselining         # = repo-blueprint.yaml's `epicSlug` default
+    epicSlug: todos-baselining      # = repo-blueprint.yaml's `epicSlug` default
     epicName: "Todos baselining — {productname}"
     milestones:
-      - name: 01-scaffold
-      - name: 02-data
-      - name: 03-site
-      - name: 04-docs
+      # The whole product is one landing (01-product): the repository, the D1
+      # root, the migrations, the site and its tests are one pull request and
+      # one convergence.
+      - name: 01-product
+      - name: 02-docs
 
   bootstrap:
     # THE BUILD DOCUMENT. There is no umbrella workflow and no agent brief:
@@ -130,7 +136,7 @@ spec:
     blueprint: repo-blueprint.yaml
     # Summed from the phases' expectedMinutes. An estimate until a bootstrap
     # measures it.
-    expectedMinutes: 18
+    expectedMinutes: 16
     tokenChannel: ORUN_TOKEN_FILE   # how a runner hands over its refreshed token
   verify:
     urls:

@@ -3,12 +3,18 @@
 //
 // This repository is a baseline: a product is instantiated from it, branded,
 // and deployed as somebody's own site. This script rewrites every *instance
-// identity* literal in the product tree — repo slug, the site's display name,
-// its source-repository link, the product domain, Cloudflare worker resource
-// names (so an instance is account-safe even when it shares an account with
-// another), the workers.dev subdomain placeholder — to the values in a values
-// file, and leaves *org-owned* identity alone (the orun state backend, the
-// `sourceplane.io` manifest apiVersion, company mailboxes).
+// identity* literal in the product tree — repo slug (which also names the D1
+// databases, the db-migrate parameters and the secret project), the site's
+// display name, its source-repository link, the product domain, Cloudflare
+// worker resource names (so an instance is account-safe even when it shares
+// an account with another), the workers.dev subdomain placeholder — to the
+// values in a values file, and leaves *org-owned* identity alone (the orun
+// state backend, the `sourceplane.io` manifest apiVersion, company
+// mailboxes).
+//
+// The engine is generic; the identity is not. Everything specific to this
+// tree is `.baseline/identity.json` (and the defaults below, which must equal
+// it) plus the SITE_NAME seam in apps/web/lib/site.ts.
 //
 // The engine is Cirrus's (sourceplane/cirrus-baseline tooling/rebrand): the
 // FROM side declared in `.baseline/identity.json`, every written value held

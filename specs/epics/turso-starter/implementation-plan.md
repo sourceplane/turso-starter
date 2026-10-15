@@ -27,7 +27,7 @@ Milestones land in order; each task is one pull request on an
 - the README quick start works from a fresh clone
 - the status file lists every PR and departure
 
-## TU4 — a baseline
+## TU4 — a baseline ✅ (#5; rebuilt by TU5)
 
 `blueprint.yaml`, `repo-blueprint.yaml`, `.baseline/` (identity, task
 contracts, the site's README), `tooling/rebrand`, `tooling/bootstrap`,
@@ -45,19 +45,40 @@ recipe (PK3 and PK-5), with a `02-data` phase from virga's
 - the status file records what is proven offline and what only a live
   bootstrap can prove
 
-## After TU4 (outside this repository)
+## TU5 — a baseline, in one landing
+
+The build document rebuilt the cirrus-baseline v22 way (`01-product`,
+`02-docs`), from `kv-redis-starter`'s KR4; the schema as migrations
+(`packages/db`, `infra/db-migrate`, `tooling/migrations` shipped,
+`tests/db`); and what the product needed to deploy from a fresh repository:
+`wrangler.jsonc` committed, dev rendering the fixture, the enforced edges
+`cloudflare-d1` → `db-migrate` → `web` on main (design §6).
+
+**Done when**
+- orun at the bootstrap floor (v2.58.11), the lane pin (v2.78.4) and the
+  current CLI (v2.79.0) reads `repo-blueprint.yaml`, and
+  `testing/manifest.test.sh` holds the card to it
+- the product's own push-to-main plan applies `cloudflare-d1`, then
+  `db-migrate`, then deploys `web`, on stage and prod
+  (`testing/placement.test.sh`)
+- `Baseline CI` is green: the contract tests, the wiring path, the leak gate,
+  the offline bootstrap and the end-to-end tier (the migration lane included)
+- the status file records what is proven offline and what only a live
+  bootstrap can prove
+
+## After TU5 (outside this repository)
 
 1. Cut `baseline-v1` with `tag.yml` from the merged `main`.
 2. Register the row in orun-cloud's `infra/baselines-registry/baselines.yaml`
    (unlisted, `manifestPath: blueprint.yaml`, `requires: [cloudflare]`) —
    its catalogue preflight refuses a tag that does not exist yet.
 3. Bootstrap one site from the tag against a workspace whose Cloudflare
-   token carries D1 Write; record its timings; then flip the row to public
-   with a page on orunbase.com.
+   token can mint D1 Edit as well as Workers Scripts; record its timings;
+   then flip the row to public with a page on orunbase.com.
 
 ## Sequencing note
 
 TU1's component already names the root's wiring secret; TU2 makes the name
-true; TU4's `02-data` phase applies it before `03-site` deploys the site that
-reads it. Applying it needs a workspace with a Cloudflare connection whose
-token can mint the D1 scope (`d1-edit`).
+true; since TU5 one convergence applies it, migrates it and deploys the
+site that reads it, in that order. Applying it needs a workspace with a
+Cloudflare connection whose token can mint the D1 scope (`d1-edit`).

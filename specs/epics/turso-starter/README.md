@@ -8,13 +8,13 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 
 | Field | Value |
 |-------|-------|
-| Status | 🟡 TU0–TU3 shipped (#1–#4); TU4 — a baseline — in review |
-| Cluster | **TU** (TU0–TU4) |
-| Owner(s) | `apps/web` (the page, the actions, `lib/turso.ts`) · `tests/web` · `infra/terraform/cloudflare-d1` |
+| Status | 🟡 TU0–TU4 shipped (#1–#5); TU5 — a baseline, in one landing — in review; D1 apply, migrations and live deploy proven only by a live bootstrap |
+| Cluster | **TU** (TU0–TU5) |
+| Owner(s) | `apps/web` (the page, the actions, `lib/turso.ts`) · `tests/web` · `infra/terraform/cloudflare-d1` · `packages/db` + `infra/db-migrate` (the schema, TU5) · `tests/db` |
 | Builds on | `cirrus-baseline`: its `cloudflare-d1` root and the `@@wiring(...)@@` deploy-time render; the `kv-redis-starter` port's binding shape |
 | Upstream | [vercel/next.js `examples/with-turso`](https://github.com/vercel/next.js/tree/canary/examples/with-turso) |
 | Changes | The client (libSQL → D1 binding, same `execute` shape), the Workers build, tests, the D1 root, the deploy contract; page copy says D1 |
-| Decisions locked | (1) The table is still created on first use, as upstream does (no migration package for a one-table demo; Cirrus's `db-migrate` is the shape when it grows). (2) `wrangler.jsonc` rendered per environment; never committed. (3) No local `dev.db` file: `wrangler dev` and `next dev` get a local D1. |
+| Decisions locked | (1) ~~The table is created on first use, as upstream does~~ — since TU5 the table is a migration (`packages/db`), applied by Cirrus's `db-migrate` shape between the D1 apply and the Worker's deploy (risk TU-A). (2) `wrangler.jsonc` rendered per environment — and, since TU5, committed as the fixture render, because the deploy lane checks it exists before the build (risk TU-G). (3) No local `dev.db` file: `wrangler dev` and `next dev` get a local D1 (`db:migrate:local` creates the table). (4) TU5: one landing — the plan, not a landing boundary, orders the database, its schema and the Worker. |
 | Gate | TU1 is the first user-visible rung. TU2 applies only with a linked workspace; verified by `terraform validate`. |
 | Shipped as | `main` after [#4](https://github.com/sourceplane/turso-starter/pull/4); verified locally under `wrangler dev` with a local D1 |
 
@@ -34,3 +34,4 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 | TU2 — the D1 database from Terraform | `infra/terraform/cloudflare-d1` | the root validates; the wiring keys match the template |
 | TU3 — ready to instantiate | README, as-built status | a reader can run, test, preview and deploy it |
 | TU4 — a baseline | card, build document (four phases, the database its own), rename, bootstrap tooling, tests | a new todo list goes from nothing to live, its D1 database included; Baseline CI green |
+| TU5 — a baseline, in one landing | the build document rebuilt as `01-product` + `02-docs` (cirrus-baseline v22), the schema as migrations (`packages/db`, `infra/db-migrate`), the deploy-lane fixes | a new todo list goes from nothing to live in one landing, D1 applied, then migrated, then the Worker deployed; Baseline CI green |

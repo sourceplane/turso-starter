@@ -3,7 +3,7 @@ kind: Intent
 
 metadata:
   name: turso-starter
-  description: Vercel's Next.js + Turso starter (a todo list with server actions on libSQL) on Cloudflare Workers + Static Assets with Cloudflare D1 in place of Turso, the database provisioned by Terraform, on the Cirrus baseline conventions
+  description: A todo list — Next.js server actions on Cloudflare Workers + Static Assets, the todos in a Cloudflare D1 database provisioned by Terraform and migrated by db-migrate
   namespace: sourceplane
 
 execution:
@@ -42,10 +42,10 @@ compositions:
     # staged tree LINKS its top-level node_modules there — out of the tree. Next
     # 16 builds with Turbopack, which refuses a dependency that resolves outside
     # its root ("Symlink apps/web/node_modules/next is invalid, it points out of
-    # the filesystem root"): portfolio-starter-kit's first live bootstrap died
-    # on it. Under 0.19.0 the job installs inside its own tree.
-    # testing/e2e.test.sh stages the job with whichever layout the pinned
-    # composition plans, so a bump is tested, not assumed.
+    # the filesystem root"). Under 0.19.0 the job installs inside its own tree,
+    # and the app has one job per lane (`lane: isolated`), so the shared install
+    # would save nothing anyway. 0.19.0 is also the floor: it retries a first
+    # deploy through Cloudflare's 10007 race and runs the smoke under backoff.
     - name: stack-tectonic
       kind: oci
       ref: oci://ghcr.io/sourceplane/stack-tectonic:0.19.0
@@ -68,10 +68,10 @@ discovery:
 # epic.yaml under `epics`, a task a contract under `tasks`; the `orun plan` on
 # main reconciles the tree into the workspace's work plane after a merge.
 #
-# THIS BLOCK IS THE BASELINE'S OWN. A site built from this baseline has no
-# `specs/` and no `tasks/` (its bootstrap work lives on the platform), so
-# 01-scaffold removes the block, and this comment with it, from the
-# product's copy (tooling/bootstrap/work-tree.mjs).
+# THIS BLOCK IS THE BASELINE'S OWN. A product built from this baseline has no
+# epics or task contracts of its own (its bootstrap work lives on the
+# platform), so the bootstrap removes the block, and this comment with it,
+# from the product's copy.
 work:
   epics: specs/epics
   tasks: tasks

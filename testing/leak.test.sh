@@ -2,16 +2,18 @@
 # THE LEAK GATE — what a site carries, and what stays in the factory.
 #
 # A site built from this baseline is somebody's site, not a copy of this
-# repository. It gets the product: the app, its tests, its CI, its tooling,
-# its README and its two context pages. It does NOT get the factory: the
-# blueprints, the bootstrap and rebrand tooling, the test gates, the task
-# contracts and identity under `.baseline/`, this repository's own epic and
-# task tree, or BOOTSTRAP.md.
+# repository. It gets the product: the app, its D1 root and migrations, its
+# tests, its CI, its tooling, its README and its two context pages. It does
+# NOT get the factory: the blueprints, the bootstrap and rebrand tooling, the
+# test gates, the task contracts and identity under `.baseline/`, this
+# repository's own epic and task tree, or BOOTSTRAP.md — and no file it does
+# get may so much as NAME one of those paths, because in the product they do
+# not exist.
 #
 # This asks orun to DERIVE the placement — every file every phase would write
-# — and gates that set. Derivation runs no hooks, contacts nothing and writes
-# nothing. testing/placement.test.sh gates the same rules over a tree that is
-# actually placed and branded.
+# — and gates that set and the sources it is copied from. Derivation runs no
+# hooks, contacts nothing and writes nothing. testing/placement.test.sh gates
+# the same rules over a tree that is actually placed and branded.
 #
 # Needs: orun + python3. No network, no credential.
 set -euo pipefail
@@ -36,11 +38,19 @@ PY
 orun new --blueprint "$root/repo-blueprint.yaml" --status --json \
   --out "$scratch/empty" "${sets[@]}" > "$scratch/status.json"
 
-python3 - "$scratch/status.json" "$root" <<'PY'
+# intent.yaml's `work:` block names this repository's epic and task tree; the
+# product's copy has it stripped by a 01-product hook before it lands, so the
+# source is gated as the product receives it.
+cp "$root/intent.yaml" "$scratch/intent.yaml"
+node "$root/tooling/bootstrap/work-tree.mjs" --strip --file "$scratch/intent.yaml" >/dev/null
+
+python3 - "$scratch/status.json" "$root" "$scratch/intent.yaml" <<'PY'
 import json, pathlib, re, sys
+import yaml
 
 status = json.load(open(sys.argv[1]))
 root = pathlib.Path(sys.argv[2])
+stripped_intent = pathlib.Path(sys.argv[3])
 problems = []
 def bad(m): problems.append(m)
 
@@ -70,7 +80,8 @@ for p in placed:
 
 # ── nothing local and nothing built ───────────────────────────────────────
 LOCAL = re.compile(r"(^|/)(\.env(\.[^/]*\.local|\.local)?|\.dev\.vars(\..*)?|node_modules|\.next|"
-                   r"\.open-next|\.wrangler|\.turbo|\.orun|next-env\.d\.ts|[^/]*\.tsbuildinfo)(/|$)")
+                   r"\.open-next|\.wrangler|\.turbo|\.orun|\.terraform|next-env\.d\.ts|[^/]*\.tsbuildinfo|"
+                   r"[^/]*\.tfstate(\.backup)?|\.terraform\.lock\.hcl)(/|$)")
 for p in placed:
     if LOCAL.search(p):
         bad(f"{p} would ship — a local or built file of whoever ran the bootstrap")
@@ -80,9 +91,56 @@ if "README.md" not in placed:
     bad("README.md would not ship")
 for must in (".github/workflows/ci.yml", ".github/workflows/checks.yml",
              "apps/web/component.yaml", "apps/web/lib/site.ts", "tests/web/component.yaml",
-             ".rebrand/values.json", "apps/web/.env.example"):
+             ".rebrand/values.json", "apps/web/.env.example", "packages/.gitkeep",
+             # the wiring path: the template, its fixture, the committed render
+             # the deploy lane checks for, and the renderer the build calls
+             "apps/web/wrangler.template.jsonc", "apps/web/wiring.fixture.json",
+             "apps/web/wrangler.jsonc", "tooling/wire/live.mjs", "tooling/wire/render.mjs",
+             # the D1 root the site binds
+             "infra/terraform/cloudflare-d1/component.yaml",
+             "infra/terraform/cloudflare-d1/terraform/main.tf",
+             "infra/terraform/cloudflare-d1/terraform/adopt.tf",
+             # the schema: its migrations, their runner, the component that
+             # applies them, the helpers and their tests
+             "packages/db/component.yaml", "packages/db/package.json",
+             "packages/db/src/manifest.ts", "packages/db/src/runner/cli.ts",
+             "packages/db/src/runner/d1-api-adapter.ts",
+             "packages/db/src/migrations/000_control/up.sql",
+             "packages/db/src/migrations/010_todos/up.sql",
+             "infra/db-migrate/component.yaml",
+             "tooling/migrations/manifest.mjs", "tooling/migrations/local.mjs",
+             "tests/db/component.yaml", "tests/db/src/migrations.test.ts"):
     if must not in placed:
         bad(f"{must} would not ship, and a site needs it")
+
+# ── no shipped file names the factory ─────────────────────────────────────
+# Read from the SOURCE each placed file is copied from (the module's `from`).
+# A product's file that points a reader at `testing/` or `repo-blueprint.yaml`
+# points at nothing: those paths do not exist in the product.
+FACTORY = re.compile(r"repo-blueprint|BOOTSTRAP\.md|(?<![\w-])(testing|specs|tasks|docs/phases|"
+                     r"tooling/rebrand|tooling/bootstrap)/|(?<![\w/])\.baseline/")
+bp = yaml.safe_load((root / "repo-blueprint.yaml").read_text())
+sources = []
+for m in bp.get("modules") or []:
+    if m.get("mode") != "copy":
+        continue
+    frm, to = (m.get("from") or "").rstrip("/"), (m.get("to") or "").rstrip("/")
+    for p in placed:
+        if p == to or p.startswith(to + "/"):
+            sources.append((p, frm + p[len(to):]))
+scanned = 0
+for shipped, src in sources:
+    path = stripped_intent if src == "intent.yaml" else root / src
+    try:
+        text = path.read_text()
+    except (UnicodeDecodeError, FileNotFoundError):
+        continue
+    scanned += 1
+    for n, line in enumerate(text.splitlines(), 1):
+        if FACTORY.search(line):
+            bad(f"{shipped} (from {src}:{n}) names a factory path: {line.strip()[:90]}")
+if scanned < 40:
+    bad(f"only {scanned} shipped sources scanned for factory paths — this check has gone blind")
 
 # ── PROVENANCE, which rebrand has no rule for ─────────────────────────────
 # Not a search for this baseline's name: the rebrand rewrites that, and this
@@ -110,6 +168,7 @@ if problems:
 print(f"   {len(placed)} files derived across every phase")
 print(f"   ai/context is exactly {len(ALLOWED_AI)} declared file(s); none of the "
       f"{len(NEVER)} factory paths; nothing local or built; no provenance prose")
+print(f"   {scanned} shipped sources name no factory path")
 PY
 
 echo "leak.test.sh: ok"

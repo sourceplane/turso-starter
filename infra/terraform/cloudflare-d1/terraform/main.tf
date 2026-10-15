@@ -88,24 +88,18 @@ variable "terraformVersion" {
   default = "1.15.3"
 }
 
-# --- The platform database ---
+# --- The todos database ---
 #
-# One D1 database per environment holds every bounded context's tables. They
-# are separated by name prefix (`identity_users`, `membership_organizations`,
-# …) rather than by Postgres schema, because SQLite has no schemas — the
-# bounded-context boundary is enforced in the repositories, as it always was.
-#
-# Why one database and not one per context: D1 offers no cross-database query
-# or foreign key, and the console's read paths join across contexts (an org's
-# members and their user records, an invoice and its subscription). Splitting
-# would move those joins into the workers, which is a much larger change than
-# the isolation is worth at this size.
+# One D1 database per deployed environment (stage, prod), bound by apps/web as
+# DB. Its schema is not Terraform's: packages/db's migrations create the
+# `todos` table, applied by the db-migrate component after this apply and
+# before the Worker deploys.
 
 locals {
-  # Brand-namespaced with var.repo so the name is unique to this fork. D1
-  # database names are unique per account, and a fork may share an account with
-  # the baseline. Workers resolve the database by ID through the wiring secret,
-  # so the name is free to change.
+  # Built on var.repo (the product's repository slug) so the name is unique per
+  # product. D1 database names are unique per account, and two products may
+  # share an account. The Worker binds this database by ID through the wiring
+  # secret, so the name is free to change.
   database_name = "${var.namespacePrefix}${var.repo}-${var.environment}"
 }
 
@@ -120,7 +114,8 @@ resource "cloudflare_d1_database" "platform" {
 # as the WIRING_CLOUDFLARE_D1 secret on the project/{{env}} rung; worker
 # deploys read it back as WIRING_CLOUDFLARE_D1_<ENV> secretEnv and render the
 # committed @@wiring(...)@@ tokens from it (BF6). The `db-migrate` component
-# reads the same document to find the database it migrates.
+# reads the same document (WIRING_CLOUDFLARE_D1) to find the database it
+# migrates.
 
 output "wiring" {
   description = "Wiring document for downstream deploy-time binding resolution (pushed to orun secrets)"

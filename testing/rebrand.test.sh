@@ -3,10 +3,13 @@
 #
 # Drives the real tooling/rebrand/rebrand.mjs over one-file trees and compares
 # the file. Each case is a shape this baseline's identity actually takes in the
-# tree — the source link, the site-name seam, the worker name, the placeholder
-# domain, a secret ref — and each runs through as many passes as a bootstrap
-# makes (every phase re-runs the rebrand over everything already placed), so a
-# value written by an early phase must survive every later one unchanged.
+# tree — the source link, the site-name seam, the worker name in the component
+# and the wrangler config, the D1 database names and the terraform `repo` they
+# are built from, the migration runner's `repo`, the placeholder domain, a
+# secret ref — and the
+# survival cases run through three passes, so a value an earlier rebrand
+# wrote (a re-run phase re-runs the rebrand over everything placed) comes
+# out of every later one unchanged.
 #
 # The identity is PINNED (fixtures/baseline-identity.turso-starter.json)
 # rather than read from .baseline/identity.json: what this tests is the engine,
@@ -50,46 +53,71 @@ check() {
   fi
 }
 
-acme='{"reponame":"acme-notes","productname":"Acme Notes","productdomain":"acme.dev","githuborg":"acme-inc","subdomain":"acme","orunWorkspace":"ws_79BDXAZQ"}'
+acme='{"reponame":"acme-todos","productname":"Acme Todos","productdomain":"acme.dev","githuborg":"acme-inc","subdomain":"acme","orunWorkspace":"ws_79BDXAZQ"}'
 
 echo "── rebrand: the site's own identity"
 check "the source link names the product's owner and repository" \
   "$acme" apps/web/lib/site.ts \
-  'export const SOURCE_URL = "https://github.com/sourceplane/turso-starter"' \
-  'export const SOURCE_URL = "https://github.com/acme-inc/acme-notes"'
+  'export const SOURCE_URL = "https://github.com/sourceplane/turso-starter";' \
+  'export const SOURCE_URL = "https://github.com/acme-inc/acme-todos";'
 check "the site-name seam takes the product's name" \
-  "$acme" apps/web/lib/site.ts 'export const SITE_NAME = "My Todos"' \
-  'export const SITE_NAME = "Acme Notes"'
+  "$acme" apps/web/lib/site.ts 'export const SITE_NAME = "My Todos";' \
+  'export const SITE_NAME = "Acme Todos";'
 check "…and stays a valid string for a name with an apostrophe and an ampersand" \
-  '{"reponame":"sams-notes","productname":"Sam'"'"'s Notes & Links","productdomain":"sam.dev"}' \
-  apps/web/lib/site.ts 'export const SITE_NAME = "My Todos"' \
-  'export const SITE_NAME = "Sam'"'"'s Notes & Links"'
+  '{"reponame":"sams-todos","productname":"Sam'"'"'s Todos & Lists","productdomain":"sam.dev"}' \
+  apps/web/lib/site.ts 'export const SITE_NAME = "My Todos";' \
+  'export const SITE_NAME = "Sam'"'"'s Todos & Lists";'
 check "the display name elsewhere is content, and is left alone" \
-  "$acme" apps/web/app/hello.md 'Welcome to My Todos.' \
-  'Welcome to My Todos.'
+  "$acme" apps/web/README.md 'My Todos, on D1. My Todos.' \
+  'My Todos, on D1. My Todos.'
 check "the worker name is re-prefixed, the environment suffix kept" \
   "$acme" apps/web/component.yaml 'workerName: turso-starter-web' \
-  'workerName: acme-notes-web'
-check "the build origin: worker name and subdomain" \
-  "$acme" apps/web/component.yaml \
-  'buildCommand: NEXT_PUBLIC_SITE_URL="${SITE_URL:-https://turso-starter-web-${ORUN_ENVIRONMENT}.your-workers-subdomain.workers.dev}" pnpm build' \
-  'buildCommand: NEXT_PUBLIC_SITE_URL="${SITE_URL:-https://acme-notes-web-${ORUN_ENVIRONMENT}.acme.workers.dev}" pnpm build'
+  'workerName: acme-todos-web'
+check "the wrangler config's worker name, template and render alike" \
+  "$acme" apps/web/wrangler.template.jsonc '  "name": "turso-starter-web",' \
+  '  "name": "acme-todos-web",'
+check "the environment URLs: worker name and subdomain" \
+  "$acme" intent.yaml '    url: https://turso-starter-web-stage.your-workers-subdomain.workers.dev' \
+  '    url: https://acme-todos-web-stage.acme.workers.dev'
+check "the D1 root's terraform repo — every database name is built on it" \
+  "$acme" infra/terraform/cloudflare-d1/terraform/main.tf '  default = "turso-starter"' \
+  '  default = "acme-todos"'
+check "the per-environment terraform repo parameter" \
+  "$acme" intent.yaml '        repo: turso-starter' \
+  '        repo: acme-todos'
+check "the D1 root's own repo parameter" \
+  "$acme" infra/terraform/cloudflare-d1/component.yaml '    repo: turso-starter' \
+  '    repo: acme-todos'
+check "the migration runner's repo parameter" \
+  "$acme" infra/db-migrate/component.yaml '    repo: turso-starter' \
+  '    repo: acme-todos'
+check "a fixture's database name follows the same rule" \
+  "$acme" apps/web/wiring.fixture.json '    "d1_database_name": "stg-turso-starter-stage"' \
+  '    "d1_database_name": "stg-acme-todos-stage"'
 check "the placeholder domain is the product's domain, not a renamed slug" \
   "$acme" intent.yaml '      BASE_DOMAIN: turso-starter.example.com' \
   '      BASE_DOMAIN: acme.dev'
 check "the repo slug" \
   "$acme" package.json '  "name": "turso-starter",' \
-  '  "name": "acme-notes",'
-check "a secret ref names the product's workspace and project" \
-  "$acme" apps/web/component.yaml 'T: secret://ws_KWQ45Z6M/turso-starter/stage/CLOUDFLARE_API_TOKEN' \
-  'T: secret://ws_79BDXAZQ/acme-notes/stage/CLOUDFLARE_API_TOKEN'
+  '  "name": "acme-todos",'
+check "a wiring secret ref names the product's workspace and project" \
+  "$acme" apps/web/component.yaml \
+  '    WIRING_CLOUDFLARE_D1_STAGE: "secret://turso-starter/turso-starter/stage/WIRING_CLOUDFLARE_D1"' \
+  '    WIRING_CLOUDFLARE_D1_STAGE: "secret://ws_79BDXAZQ/acme-todos/stage/WIRING_CLOUDFLARE_D1"'
+check "a templated provider secret ref too (the D1 token the root and the runner bind)" \
+  "$acme" infra/db-migrate/component.yaml \
+  '    CLOUDFLARE_API_TOKEN: "secret://turso-starter/turso-starter/{{ .environment }}/CLOUDFLARE_D1_TOKEN"' \
+  '    CLOUDFLARE_API_TOKEN: "secret://ws_79BDXAZQ/acme-todos/{{ .environment }}/CLOUDFLARE_D1_TOKEN"'
+check "the lib/turso client keeps its name: 'turso' alone is not the slug" \
+  "$acme" apps/web/app/actions.ts 'import { db } from "@/lib/turso";' \
+  'import { db } from "@/lib/turso";'
 check "org-owned identity is not renamed" \
   "$acme" intent.yaml 'apiVersion: sourceplane.io/v1 # mail ops@sourceplane.ai' \
   'apiVersion: sourceplane.io/v1 # mail ops@sourceplane.ai'
 check "without githuborg the source link keeps the baseline's owner" \
-  '{"reponame":"acme-notes","productname":"Acme Notes","productdomain":"acme.dev"}' \
-  apps/web/lib/site.ts 'const SOURCE_URL = "https://github.com/sourceplane/turso-starter"' \
-  'const SOURCE_URL = "https://github.com/sourceplane/acme-notes"'
+  '{"reponame":"acme-todos","productname":"Acme Todos","productdomain":"acme.dev"}' \
+  apps/web/lib/site.ts 'const SOURCE_URL = "https://github.com/sourceplane/turso-starter";' \
+  'const SOURCE_URL = "https://github.com/sourceplane/acme-todos";'
 
 echo "── rebrand: a written value is not rewritten, in any later pass"
 contains='{"reponame":"turso-starter-2","productname":"My Todos 2","productdomain":"turso-starter.example.com.au","githuborg":"sourceplane","subdomain":"your-workers-subdomain-2"}'
@@ -99,6 +127,9 @@ check "a repo slug containing the baseline's slug survives three passes" \
 check "a worker name built on it survives three passes" \
   "$contains" apps/web/component.yaml 'workerName: turso-starter-web' \
   'workerName: turso-starter-2-web' 3
+check "a database name built on it survives three passes" \
+  "$contains" apps/web/wiring.fixture.json '"d1_database_name": "prod-turso-starter-prod"' \
+  '"d1_database_name": "prod-turso-starter-2-prod"' 3
 check "a domain containing the baseline's domain survives three passes" \
   "$contains" intent.yaml 'BASE_DOMAIN: turso-starter.example.com' \
   'BASE_DOMAIN: turso-starter.example.com.au' 3
@@ -106,8 +137,8 @@ check "a subdomain containing the placeholder survives three passes" \
   "$contains" apps/web/component.yaml 'workersDevSubdomain: your-workers-subdomain' \
   'workersDevSubdomain: your-workers-subdomain-2' 3
 check "a site name containing the baseline's name survives three passes" \
-  "$contains" apps/web/lib/site.ts 'export const SITE_NAME = "My Todos"' \
-  'export const SITE_NAME = "My Todos 2"' 3
+  "$contains" apps/web/lib/site.ts 'export const SITE_NAME = "My Todos";' \
+  'export const SITE_NAME = "My Todos 2";' 3
 
 # --verify runs in every phase. Without the product's values it cannot tell
 # the product's own identity from a leftover; with them it can. A real
@@ -132,11 +163,15 @@ verify "without them it cannot know, and fails" \
 verify "given the values, a real leftover still fails" \
   "$acme" package.json '"name": "turso-starter"' fail --values
 verify "a leftover worker name fails" \
-  "$acme" apps/web/component.yaml 'workerName: turso-starter-web' fail --values
+  "$acme" apps/web/wrangler.jsonc '"name": "turso-starter-web",' fail --values
+verify "a leftover database name fails" \
+  "$acme" apps/web/wiring.fixture.json '"d1_database_name": "stg-turso-starter-stage"' fail --values
+verify "a leftover runner parameter fails" \
+  "$acme" infra/db-migrate/component.yaml '    repo: turso-starter' fail --values
 verify "a leftover code identifier fails (no rule renames it — so nothing may spell it)" \
-  "$acme" apps/web/lib/x.ts 'export class TursoStarter {}' fail --values
+  "$acme" apps/web/app/x.ts 'export class TursoStarter {}' fail --values
 verify "a clean product passes" \
-  "$acme" package.json '"name": "acme-notes"' pass --values
+  "$acme" package.json '"name": "acme-todos"' pass --values
 
 echo "── rebrand: a residue it cannot rename fails the rebrand itself"
 tmp="$(mktemp -d)"; git -C "$tmp" init -q; mkdir -p "$tmp/.rebrand" "$tmp/apps/web"
