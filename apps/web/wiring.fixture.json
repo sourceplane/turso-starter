@@ -1,0 +1,10 @@
+{
+  "cloudflare-d1/stage": {
+    "d1_database_id": "00000000-0000-0000-0000-000000000001",
+    "d1_database_name": "stg-turso-starter-stage"
+  },
+  "cloudflare-d1/prod": {
+    "d1_database_id": "00000000-0000-0000-0000-000000000003",
+    "d1_database_name": "prod-turso-starter-prod"
+  }
+}
