@@ -1,0 +1,12 @@
+apiVersion: orun.io/v1
+kind: TaskContract
+spec:
+  goal: The D1 database per environment is provisioned by Terraform through Orun and publishes the wiring document the app renders from
+  affects:
+    - infra/terraform/cloudflare-d1
+    - apps/web/component.yaml
+    - apps/web/wiring.fixture.json
+  doneWhen:
+    - terraform validate passes on infra/terraform/cloudflare-d1
+    - the wiring keys match the template's tokens
+  gates: []
