@@ -8,7 +8,7 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 
 | Field | Value |
 |-------|-------|
-| Status | Draft |
+| Status | ✅ Shipped — TU0–TU3 landed (#1–#4); D1 apply and live deploy gated on a linked workspace |
 | Cluster | **TU** (TU0–TU3) |
 | Owner(s) | `apps/web` (the page, the actions, `lib/turso.ts`) · `tests/web` · `infra/terraform/cloudflare-d1` |
 | Builds on | `cirrus-baseline`: its `cloudflare-d1` root and the `@@wiring(...)@@` deploy-time render; the `kv-redis-starter` port's binding shape |
@@ -16,7 +16,7 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 | Changes | The client (libSQL → D1 binding, same `execute` shape), the Workers build, tests, the D1 root, the deploy contract; page copy says D1 |
 | Decisions locked | (1) The table is still created on first use, as upstream does (no migration package for a one-table demo; Cirrus's `db-migrate` is the shape when it grows). (2) `wrangler.jsonc` rendered per environment; never committed. (3) No local `dev.db` file: `wrangler dev` and `next dev` get a local D1. |
 | Gate | TU1 is the first user-visible rung. TU2 applies only with a linked workspace; verified by `terraform validate`. |
-| Shipped as | |
+| Shipped as | `main` after [#4](https://github.com/sourceplane/turso-starter/pull/4); verified locally under `wrangler dev` with a local D1 |
 
 ## Read order
 
