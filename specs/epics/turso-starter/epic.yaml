@@ -1,0 +1,33 @@
+# The epic's declaration. metadata.name equals the directory name; metadata.key
+# is the task-key prefix this epic reserves (TU → TU-1, TU-2, …). Owner, target
+# date and health are the platform's — never written here.
+apiVersion: orun.io/v1
+kind: Epic
+metadata:
+  name: turso-starter
+  key: TU
+spec:
+  title: "Vercel's Next.js + Turso starter on Cloudflare Workers with D1"
+  summary: "The Vercel Next.js + Turso starter — a todo list whose server actions insert and delete rows through the libSQL client, creating its table on first use — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with the todos in a Cloudflare D1 database provisioned by Terraform through Orun, inside the Cirrus baseline's repository conventions. Turso and D1 are both SQLite, so the SQL does not change: lib/turso.ts keeps the client's execute() shape over the D1 binding and every query stays as written."
+  state: backlog
+  milestones:
+    - name: "TU0 — the spec"
+      exitCriteria:
+        - "the doc set and the task contracts are on main"
+      tasks: [TU-1]
+    - name: "TU1 — the todos on D1"
+      exitCriteria:
+        - "apps/web is the upstream template with lib/turso.ts speaking to the DB D1 binding"
+        - "the wrangler config renders per environment from the cloudflare-d1 root's wiring document (fixture in verify, live in deploy)"
+        - "`pnpm typecheck`, `pnpm lint`, `pnpm test` and `pnpm build` are green on main (Checks)"
+        - "`wrangler dev` serves the page, creates the table in the local D1 and lists todos"
+      tasks: [TU-2]
+    - name: "TU2 — the D1 database from Terraform"
+      exitCriteria:
+        - "infra/terraform/cloudflare-d1 provisions the stage and prod databases and publishes the wiring document the app renders from"
+      tasks: [TU-3]
+    - name: "TU3 — ready to instantiate"
+      exitCriteria:
+        - "the README says how to run, test, preview and deploy it"
+        - "the as-built status records every departure from the upstream template"
+      tasks: [TU-4]
