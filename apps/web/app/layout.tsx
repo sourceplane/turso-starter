@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { SITE_NAME } from "@/lib/site";
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Next.js + D1",
+  title: SITE_NAME,
   description: "Next.js Server Actions Demo + Cloudflare D1",
 };
 

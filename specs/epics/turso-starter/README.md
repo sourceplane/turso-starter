@@ -8,8 +8,8 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 
 | Field | Value |
 |-------|-------|
-| Status | ✅ Shipped — TU0–TU3 landed (#1–#4); D1 apply and live deploy gated on a linked workspace |
-| Cluster | **TU** (TU0–TU3) |
+| Status | 🟡 TU0–TU3 shipped (#1–#4); TU4 — a baseline — in review |
+| Cluster | **TU** (TU0–TU4) |
 | Owner(s) | `apps/web` (the page, the actions, `lib/turso.ts`) · `tests/web` · `infra/terraform/cloudflare-d1` |
 | Builds on | `cirrus-baseline`: its `cloudflare-d1` root and the `@@wiring(...)@@` deploy-time render; the `kv-redis-starter` port's binding shape |
 | Upstream | [vercel/next.js `examples/with-turso`](https://github.com/vercel/next.js/tree/canary/examples/with-turso) |
@@ -33,3 +33,4 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 | TU1 — the todos on D1 | `apps/web`, the rendered wrangler config, `tests/web` | `wrangler dev` lists todos from the local D1; Checks green |
 | TU2 — the D1 database from Terraform | `infra/terraform/cloudflare-d1` | the root validates; the wiring keys match the template |
 | TU3 — ready to instantiate | README, as-built status | a reader can run, test, preview and deploy it |
+| TU4 — a baseline | card, build document (four phases, the database its own), rename, bootstrap tooling, tests | a new todo list goes from nothing to live, its D1 database included; Baseline CI green |

@@ -51,3 +51,46 @@ tests/web                     vitest: the client, the list's first-run create, t
 
 Migrations (Cirrus's `packages/db` + `db-migrate` when a product outgrows
 "create on first use"), auth, and a custom domain.
+
+## 6. The baseline (TU4)
+
+The repository instantiates new todo lists the way
+[portfolio-starter-kit](https://github.com/sourceplane/portfolio-starter-kit)
+instantiates sites — a console card (`blueprint.yaml`), a build document
+(`repo-blueprint.yaml`) `orun new` runs, and a rename engine that makes the
+copy somebody else's. The two repositories share every file outside the app
+and the database, so the machinery is portfolio-starter-kit's PK3 plus what
+its first live bootstrap found (PK-5) — stack-tectonic 0.19.0, `checks.yml`
+on pull requests only — with the names changed. What is this repository's
+own is the database, and it takes a phase:
+
+| Phase | Lands | From |
+|---|---|---|
+| `01-scaffold` | the repository, CI, tooling (incl. `tooling/wire`), identity | portfolio-starter-kit, unchanged |
+| `02-data` | `infra/terraform/cloudflare-d1`; mints `CLOUDFLARE_D1_TOKEN` (`d1-edit`) and `CLOUDFLARE_ACCOUNT_ID`; verifies `WIRING_CLOUDFLARE_D1` on stage and prod | virga's `03-infrastructure`, without KV |
+| `03-site` | `apps/web` + `tests/web`; mints `CLOUDFLARE_API_TOKEN` (`workers-deploy`) | portfolio-starter-kit's `02-site`, now requiring `02-data` |
+| `04-docs` | the deployment record, the promotion gate and dev lanes put back | portfolio-starter-kit's `03-docs` |
+
+**Why a phase of its own, before the site.** `apps/web/component.yaml`
+dependsOn `cloudflare-d1`, and its build renders the database's id from
+`WIRING_CLOUDFLARE_D1_<ENV>` (`tooling/wire/live.mjs` fails loudly when it
+is missing). Landing both in one phase would deploy the site in the same
+convergence that first creates the database; landing the database first
+makes `03-site`'s precondition a fact `02-data` verified
+(`orun.secrets/exists@v1`), and gives a failed apply — most often a token
+without D1 Write — a phase, a message and a re-run of its own.
+
+**Departures from portfolio-starter-kit, and why:**
+
+| portfolio-starter-kit | Here | Why |
+|---|---|---|
+| `intent.yaml` drops the Terraform `parameterDefaults` | kept | the D1 root reads them; the component also names `repo` (as virga's does) |
+| `NEXT_PUBLIC_SITE_URL`, `SITE_URL` per environment | none | the page builds no absolute link; a custom domain needs no change in the repository |
+| `apps/web/app/site.ts`: `SITE_NAME`, `SOURCE_URL`, `escapeXml` | `apps/web/lib/site.ts`: `SITE_NAME`, `SOURCE_URL` | the page's heading and title; a "source" link under the heading (upstream had none) |
+| smoke: the nav's `/blog` link, `/rss` is a feed | smoke: the page renders the todo form | it only renders after reading D1 |
+| e2e reads `/blog`, `/rss`, `/sitemap.xml`, `/og` | e2e adds, lists and removes a todo through the page's own server actions (`testing/lib/server-action.mjs`, React's own reply encoder) against wrangler dev's local D1 | the site's one promise is that the store works |
+| product name `My Portfolio`, epic `portfolio-baselining` | `My Todos`, `todos-baselining` | |
+| upstream's `apps/web/README.md` | rewritten | upstream's tells the reader to create a Turso database and set `TURSO_DB_URL`, which this site does not use |
+
+`tooling/migrations` stays in this repository and does not ship: nothing
+references it (the list creates its table on first use, risks TU-A).
