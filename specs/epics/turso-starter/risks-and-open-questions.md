@@ -15,3 +15,11 @@ neither; a bigger product on the Cirrus baseline carries the same caveat.
 
 "Turso" / "Local SQLite with libSQL and Turso" read "D1" / "SQLite on
 Cloudflare D1 (a Turso template port)"; the layout title is "Next.js + D1".
+
+## TU-D — ISR on a read-only cache (RESOLVED)
+
+The static-assets incremental cache cannot be revalidated, so a
+pre-rendered `/` would freeze the todo list. `dynamic = "force-dynamic"`
+renders it per request; the R2 incremental cache + Durable Object queue is
+the alternative that keeps ISR (the commerce port uses it) and is
+overkill for one page.

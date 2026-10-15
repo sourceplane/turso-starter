@@ -9,7 +9,7 @@ metadata:
 spec:
   title: "Vercel's Next.js + Turso starter on Cloudflare Workers with D1"
   summary: "The Vercel Next.js + Turso starter — a todo list whose server actions insert and delete rows through the libSQL client, creating its table on first use — runs on Cloudflare Workers + Static Assets through @opennextjs/cloudflare with the todos in a Cloudflare D1 database provisioned by Terraform through Orun, inside the Cirrus baseline's repository conventions. Turso and D1 are both SQLite, so the SQL does not change: lib/turso.ts keeps the client's execute() shape over the D1 binding and every query stays as written."
-  state: backlog
+  state: completed
   milestones:
     - name: "TU0 — the spec"
       exitCriteria:
