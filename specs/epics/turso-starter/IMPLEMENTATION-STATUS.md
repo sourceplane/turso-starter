@@ -9,8 +9,9 @@ the code departed from `design.md` or from the upstream template.
 | TU1 — the todos on D1 | ✅ Shipped | [#2](https://github.com/sourceplane/turso-starter/pull/2) |
 | TU2 — the D1 database from Terraform | ✅ Shipped (validated; apply gated on a linked workspace) | [#3](https://github.com/sourceplane/turso-starter/pull/3) |
 | TU3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/turso-starter/pull/4) |
-| TU4 — a baseline | ✅ Shipped (four phases; rebuilt by TU5) | [#5](https://github.com/sourceplane/turso-starter/pull/5) |
-| TU5 — a baseline, in one landing | 🟡 In review (offline-proven; no live bootstrap yet, risk TU-E) | this PR (TU-6), to be tagged `baseline-v1` |
+| TU4 — a baseline | ✅ Shipped (four phases; rebuilt by TU5) | [#5](https://github.com/sourceplane/turso-starter/pull/5) (TU-5), tagged `baseline-v1` |
+| TU5 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk TU-E) | [#6](https://github.com/sourceplane/turso-starter/pull/6) (TU-6), tagged `baseline-v2` |
+| TU6 — the cirrus standard | ✅ Shipped | TU-7 — on `main` after `baseline-v2`, not yet tagged |
 
 ## Departures from the upstream template
 
@@ -75,7 +76,7 @@ The template floated `next: latest` with React 18 and `eslint-config-next 14`.
 | `tooling/wire/render.mjs` | copied the template's header comment | writes a GENERATED banner | the committed render must say it is one |
 | e2e | built and dry-deployed the stage lane (no `verify-app-structure`) | + `verify-app-structure`; + the db-migrate lane's install, build, offline plan and apply against a stand-in D1 REST API over real SQLite; + the smoke refusing a page with no schema | the tier must run what the lanes run |
 
-## Verified
+## Verified (TU1–TU3)
 
 - Local: `pnpm run wire:fixture`, `pnpm typecheck`, `pnpm lint`, `pnpm test`
   (3 tests), `pnpm build` green; `wrangler dev` with a local D1: `/` 200
@@ -140,6 +141,48 @@ See the pull request for the run log. In short, under orun 2.79.0, v2.78.4
   `wire:fixture` + `git diff --exit-code`, typecheck, lint, test — 21 tests
   — build) green; `terraform validate` green on `infra/terraform/cloudflare-d1`.
 - Not verified: a live bootstrap against a workspace (risk TU-E).
+
+## The cirrus standard (TU6)
+
+Nothing about the product changed. What changed is the baseline around it:
+
+| What | Before | After | Why |
+|---|---|---|---|
+| orun pin | `kiox.yaml` (v2.15.0) + `kiox.lock`, shipped to every product | gone; orun is pinned where it runs, the `orun-action` `version:` in each workflow | nothing ran the kiox pin, and it disagreed with the lanes (v2.78.4) |
+| `root-kiox`, `root-kiox-lock` modules | in `01-product` | removed (`testing/phases.test.sh` and the rebrand's skip list follow) | a product is placed with 106 files: 90 − 2 kiox + 18 docs pages |
+| component docs | none | `docs/overview.md`, `architecture.md`, `runbook.md` beside each of the six `component.yaml` (`apps/web`, `packages/db`, `infra/db-migrate`, `infra/terraform/cloudflare-d1`, `tests/{web,db}`) | cirrus-baseline documents every component; the workspace Docs library renders `docs/` beside each `component.yaml` |
+| how the docs stay true | — | `tooling/catalog/gen-component-docs.py` derives them from the manifest, the Worker config, Terraform, the migrations and package scripts; Baseline CI runs it with `--check` | a hand-written copy of a manifest drifts silently |
+| context pack | `operations.md`, `deployment.md` | plus `current.md`, `decisions.md`, `open-risks.md` | cirrus-baseline's shape; the three new pages are this repository's own and no module places them (the leak gate still allows exactly two) |
+| status | TU5 "in review … to be tagged `baseline-v1`"; an unlabeled Verified section ("the table created on first render", 3 tests) | TU4 `baseline-v1`, TU5 `baseline-v2`; the section is labeled TU1–TU3 | the tags existed; the documents had not caught up |
+
+## Verified (TU6)
+
+- `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer,wire}.test.sh`
+  green; `gen-component-docs.py --check` green (6 components, 18 pages).
+- `orun new --status` (v2.58.11, the bootstrap floor): `01-product` 106
+  files, `02-docs` hook-only.
+- `testing/leak.test.sh` (v2.58.11): 106 files derived (90 − 2 kiox + 18
+  docs pages); ai/context still exactly the two declared pages; 100 shipped
+  sources name no factory path.
+- `testing/placement.test.sh` (v2.78.4, as Baseline CI runs it): 106 files
+  placed, both landings, branded, re-tenanted, record rendered; the
+  product's own plan for the 01-product merge: `cloudflare-d1` (level 0) →
+  `db-migrate` (level 1) → `web` (level 2) on stage and prod side by side;
+  on a pull request nothing waits; the 02-docs merge plans 0 jobs;
+  `--resume` changes nothing.
+- `pnpm install --frozen-lockfile`, `wire:fixture` + `git diff
+  --exit-code`, `typecheck`, `lint`, `test` (21 tests: 7 in `tests/web`, 14
+  in `tests/db`), `build` green.
+- `testing/e2e.test.sh` (v2.78.4): the 01-product landing passes the Checks
+  sequence; the stage web lane's `verify-app-structure`, `build-app` (the
+  stage document's database id), `verify-build-output` and
+  `deploy-dry-run` pass in the staged job tree; the stage db-migrate lane
+  plans offline, applies both migrations to the stand-in D1 API and applies
+  nothing the second time; under `wrangler dev` the page without a schema
+  is refused by the smoke, and after `db:migrate:local` the smoke passes and
+  a todo is added, listed and removed through the page's own server
+  actions.
+- `orun task check TU-7` complete.
 
 ## Versions
 
