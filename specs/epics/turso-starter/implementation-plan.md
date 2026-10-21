@@ -45,7 +45,7 @@ recipe (PK3 and PK-5), with a `02-data` phase from virga's
 - the status file records what is proven offline and what only a live
   bootstrap can prove
 
-## TU5 — a baseline, in one landing
+## TU5 — a baseline, in one landing ✅ (#6)
 
 The build document rebuilt the cirrus-baseline v22 way (`01-product`,
 `02-docs`), from `kv-redis-starter`'s KR4; the schema as migrations
@@ -66,9 +66,35 @@ The build document rebuilt the cirrus-baseline v22 way (`01-product`,
 - the status file records what is proven offline and what only a live
   bootstrap can prove
 
+## TU6 — the cirrus standard (TU-7) ✅
+
+Bring the baseline to cirrus-baseline's standard, with nothing about the
+product itself changing.
+
+- **No kiox.** `kiox.yaml`/`kiox.lock` pinned an orun (v2.15.0) that nothing
+  ran: every workflow installs orun itself through `orun-action` with its own
+  `version:`. The files, their two modules and the rebrand's skip entry go.
+- **Component docs.** `tooling/catalog/gen-component-docs.py` writes each
+  component's `docs/overview.md`, `docs/architecture.md` and `docs/runbook.md`
+  from what the component declares, as cirrus-baseline's do; the pages ship
+  with the component. Baseline CI runs it with `--check`.
+- **The context pack.** `ai/context/current.md`, `decisions.md` and
+  `open-risks.md` beside the two pages a product ships with — this
+  repository's own, so no module places them.
+- **Status that agrees with the tags.** TU4 is `baseline-v1`, TU5
+  `baseline-v2`.
+
+**Done when**
+- nothing outside this milestone's own record (its specs, task and context
+  pages) names kiox, and the leak gate and the offline bootstrap pass
+  without the two modules
+- the docs check is green in Baseline CI
+- this file, the status file and `epic.yaml` agree
+
 ## After TU5 (outside this repository)
 
-1. Cut `baseline-v1` with `tag.yml` from the merged `main`.
+1. Cut the tag with `tag.yml` from the merged `main` — done: TU5 is
+   `baseline-v2` (`baseline-v1` is TU4's four-phase build).
 2. Register the row in orun-cloud's `infra/baselines-registry/baselines.yaml`
    (unlisted, `manifestPath: blueprint.yaml`, `requires: [cloudflare]`) —
    its catalogue preflight refuses a tag that does not exist yet.
