@@ -11,7 +11,7 @@ the code departed from `design.md` or from the upstream template.
 | TU3 — ready to instantiate | ✅ Shipped | [#4](https://github.com/sourceplane/turso-starter/pull/4) |
 | TU4 — a baseline | ✅ Shipped (four phases; rebuilt by TU5) | [#5](https://github.com/sourceplane/turso-starter/pull/5) (TU-5), tagged `baseline-v1` |
 | TU5 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk TU-E) | [#6](https://github.com/sourceplane/turso-starter/pull/6) (TU-6), tagged `baseline-v2` |
-| TU6 — the cirrus standard | ✅ Shipped | TU-7 — on `main` after `baseline-v2`, not yet tagged |
+| TU6 — the cirrus standard | ✅ Shipped | [#7](https://github.com/sourceplane/turso-starter/pull/7) (TU-7), [#8](https://github.com/sourceplane/turso-starter/pull/8) (TU-8), tagged `baseline-v3` |
 
 ## Departures from the upstream template
 
@@ -154,6 +154,41 @@ Nothing about the product changed. What changed is the baseline around it:
 | how the docs stay true | — | `tooling/catalog/gen-component-docs.py` derives them from the manifest, the Worker config, Terraform, the migrations and package scripts; Baseline CI runs it with `--check` | a hand-written copy of a manifest drifts silently |
 | context pack | `operations.md`, `deployment.md` | plus `current.md`, `decisions.md`, `open-risks.md` | cirrus-baseline's shape; the three new pages are this repository's own and no module places them (the leak gate still allows exactly two) |
 | status | TU5 "in review … to be tagged `baseline-v1`"; an unlabeled Verified section ("the table created on first render", 3 tests) | TU4 `baseline-v1`, TU5 `baseline-v2`; the section is labeled TU1–TU3 | the tags existed; the documents had not caught up |
+
+### The subdomain from the Cloudflare connection (TU-8)
+
+The console card's `subdomain` input was typed by hand, though it belongs to
+the Cloudflare account the same way its id does and has exactly one right
+answer. A wrong value surfaced only after deploy, in the smoke checks and the
+verify URLs. `blueprint.yaml` now declares
+`from: connection.cloudflare.workersSubdomain`, as cirrus-baseline does since
+`baseline-v23`: the Cloudflare integration reads the subdomain from the
+account at connect and on its hourly health check, and the bootstrap door
+fills the input from the connection the build is bound to — the same one
+`CLOUDFLARE_ACCOUNT_ID` and the deploy tokens mint from. The console renders
+no field for it, and an account with no workers.dev subdomain is refused at
+the door, naming the fix.
+
+- `testing/manifest.test.sh` takes cirrus-baseline's check: a
+  `connection.<provider>.<fact>` source is accepted, and only when the card's
+  `spec.requires.integrations` lists the provider (this card lists
+  `[github, cloudflare]`).
+- `repo-blueprint.yaml` keeps the input and its default; its description,
+  `BOOTSTRAP.md` and `docs/phases/README.md` say a hand-run `orun new` still
+  passes `--set subdomain`.
+- Nothing a product runs changed: no app, package, Terraform, migration,
+  test or tooling file.
+
+Verified: `testing/{manifest,phases,coverage,rebrand,retouch,bootstrap-defer,wire}.test.sh`
+green; `gen-component-docs.py --check` green (6 components); at v2.58.11,
+`orun new --status` on `repo-blueprint.yaml` (`01-product` 106 files) and
+`testing/leak.test.sh` (106 files derived; 100 shipped sources name no
+factory path); at v2.78.4, `testing/placement.test.sh` (106 tracked files;
+cloudflare-d1 → db-migrate → web; `--resume` changes nothing); `orun task
+check TU-8` complete. Mutation check: with `cloudflare` removed from
+`spec.requires.integrations`, `manifest.test.sh` fails with the one finding
+`inputs[subdomain].from is 'connection.cloudflare.workersSubdomain' but
+spec.requires.integrations does not list cloudflare`; restored, it passes.
 
 ## Verified (TU6)
 
