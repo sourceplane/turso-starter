@@ -97,6 +97,14 @@ check "a fixture's database name follows the same rule" \
 check "the placeholder domain is the product's domain, not a renamed slug" \
   "$acme" intent.yaml '      BASE_DOMAIN: turso-starter.example.com' \
   '      BASE_DOMAIN: acme.dev'
+check "no domain given: the reserved placeholder, for an owner to replace later" \
+  '{"reponame":"acme-todos","productname":"Acme Todos","githuborg":"acme-inc","subdomain":"acme"}' \
+  intent.yaml '      BASE_DOMAIN: turso-starter.example.com' \
+  '      BASE_DOMAIN: acme-todos.example.com'
+check "an empty domain is no domain" \
+  '{"reponame":"acme-todos","productname":"Acme Todos","productdomain":""}' \
+  intent.yaml '      BASE_DOMAIN: turso-starter.example.com' \
+  '      BASE_DOMAIN: acme-todos.example.com'
 check "the repo slug" \
   "$acme" package.json '  "name": "turso-starter",' \
   '  "name": "acme-todos",'

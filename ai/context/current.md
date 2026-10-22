@@ -18,7 +18,7 @@ db-migrate → web per environment), then records what went live (`02-docs`).
 
 | | |
 |---|---|
-| Latest tag | `baseline-v3` (TU6 — the cirrus standard: no kiox, generated component docs, this context pack, and the console card reading `subdomain` from the Cloudflare connection); `baseline-v2` is TU5 (one landing), `baseline-v1` TU4's four-phase build |
+| Latest tag | `baseline-v4` (TU7 — the domain is set later: the console asks for no domain, and a site is born with the placeholder `<reponame>.example.com` for an owner to replace); `baseline-v3` is TU6 (the cirrus standard), `baseline-v2` TU5 (one landing), `baseline-v1` TU4's four-phase build |
 | Proven live | No. Everything short of the platform is proven offline in Baseline CI, the migration lane against a stand-in D1 API and a todo round-tripped through the built Worker included; a live bootstrap from a tag is still to come (risk TU-E) |
 
 ## Where to read
@@ -33,6 +33,6 @@ db-migrate → web per environment), then records what went live (`02-docs`).
 
 ## Next
 
-1. Bootstrap one product from `baseline-v3` against a workspace whose
+1. Bootstrap one product from `baseline-v4` against a workspace whose
    Cloudflare token can mint D1 Edit as well as Workers Scripts (TU-F), and
    record its timings (closes TU-E).

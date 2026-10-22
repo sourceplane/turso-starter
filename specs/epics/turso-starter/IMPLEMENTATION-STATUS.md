@@ -12,6 +12,7 @@ the code departed from `design.md` or from the upstream template.
 | TU4 — a baseline | ✅ Shipped (four phases; rebuilt by TU5) | [#5](https://github.com/sourceplane/turso-starter/pull/5) (TU-5), tagged `baseline-v1` |
 | TU5 — a baseline, in one landing | ✅ Shipped (offline-proven; no live bootstrap yet, risk TU-E) | [#6](https://github.com/sourceplane/turso-starter/pull/6) (TU-6), tagged `baseline-v2` |
 | TU6 — the cirrus standard | ✅ Shipped | [#7](https://github.com/sourceplane/turso-starter/pull/7) (TU-7), [#8](https://github.com/sourceplane/turso-starter/pull/8) (TU-8), tagged `baseline-v3` |
+| TU7 — the domain is set later | ✅ Shipped | [#9](https://github.com/sourceplane/turso-starter/pull/9) (TU-9), tagged `baseline-v4` |
 
 ## Departures from the upstream template
 
@@ -189,6 +190,31 @@ check TU-8` complete. Mutation check: with `cloudflare` removed from
 `spec.requires.integrations`, `manifest.test.sh` fails with the one finding
 `inputs[subdomain].from is 'connection.cloudflare.workersSubdomain' but
 spec.requires.integrations does not list cloudflare`; restored, it passes.
+
+## The domain is set later (TU7, TU-9)
+
+The console asked for the site's domain, with help text that said it did not
+need to exist — and nothing in the build needed one: the site answers on
+workers.dev from its first deploy, the page renders no absolute link to
+itself, and the one place the repository names the domain is `BASE_DOMAIN`
+in `intent.yaml`. A domain is an owner's step after the bootstrap (README,
+"Custom domain"), so the form no longer asks for it.
+
+- `blueprint.yaml` declares no `productdomain` input; the console's Product
+  step asks for the site's name alone.
+- `repo-blueprint.yaml`'s `productdomain` is optional, default empty. A
+  hand-run build may still pass `--set productdomain=` for a site that
+  already has its domain.
+- `rebrand.mjs` no longer requires it. Empty, it brands the reserved
+  placeholder `<reponame>.example.com` (RFC 2606 — never someone else's
+  domain) where the domain goes, so setting it later is replacing one
+  string; the product README and `ai/context/operations.md` say so.
+- `testing/fixtures/acme.json` carries no domain, so the leak gate and the
+  offline bootstrap exercise exactly what a console build supplies;
+  `testing/rebrand.test.sh` pins the placeholder for an absent and an empty
+  domain; `baseline.yml`'s blueprint read sets no domain.
+
+Nothing that needs a domain was removed — it waits for one.
 
 ## Verified (TU6)
 

@@ -8,15 +8,15 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 
 | Field | Value |
 |-------|-------|
-| Status | ✅ TU0–TU6 shipped (#1–#8): TU4 tagged `baseline-v1`, TU5 tagged `baseline-v2`, TU6 (the cirrus standard, TU-7 and TU-8) tagged `baseline-v3`. D1 apply, migrations and live deploy proven only by a live bootstrap (risk TU-E) |
-| Cluster | **TU** (TU0–TU6) |
+| Status | ✅ TU0–TU7 shipped (#1–#9): TU4 tagged `baseline-v1`, TU5 tagged `baseline-v2`, TU6 (the cirrus standard, TU-7 and TU-8) tagged `baseline-v3`, TU7 (the domain is set later, TU-9) tagged `baseline-v4`. D1 apply, migrations and live deploy proven only by a live bootstrap (risk TU-E) |
+| Cluster | **TU** (TU0–TU7) |
 | Owner(s) | `apps/web` (the page, the actions, `lib/turso.ts`) · `tests/web` · `infra/terraform/cloudflare-d1` · `packages/db` + `infra/db-migrate` (the schema, TU5) · `tests/db` |
 | Builds on | `cirrus-baseline`: its `cloudflare-d1` root and the `@@wiring(...)@@` deploy-time render; the `kv-redis-starter` port's binding shape |
 | Upstream | [vercel/next.js `examples/with-turso`](https://github.com/vercel/next.js/tree/canary/examples/with-turso) |
 | Changes | The client (libSQL → D1 binding, same `execute` shape), the Workers build, tests, the D1 root, the deploy contract; page copy says D1 |
 | Decisions locked | (1) ~~The table is created on first use, as upstream does~~ — since TU5 the table is a migration (`packages/db`), applied by Cirrus's `db-migrate` shape between the D1 apply and the Worker's deploy (risk TU-A). (2) `wrangler.jsonc` rendered per environment — and, since TU5, committed as the fixture render, because the deploy lane checks it exists before the build (risk TU-G). (3) No local `dev.db` file: `wrangler dev` and `next dev` get a local D1 (`db:migrate:local` creates the table). (4) TU5: one landing — the plan, not a landing boundary, orders the database, its schema and the Worker. |
 | Gate | TU1 is the first user-visible rung. TU2 applies only with a linked workspace; verified by `terraform validate`. |
-| Shipped as | `baseline-v3` ([#7](https://github.com/sourceplane/turso-starter/pull/7), [#8](https://github.com/sourceplane/turso-starter/pull/8), TU6), `baseline-v2` ([#6](https://github.com/sourceplane/turso-starter/pull/6), one landing); `baseline-v1` is TU4's four-phase build ([#5](https://github.com/sourceplane/turso-starter/pull/5)). Proven offline (Baseline CI: a todo round-tripped through a local D1 under `wrangler dev`), deploy gated until a workspace is linked |
+| Shipped as | `baseline-v4` ([#9](https://github.com/sourceplane/turso-starter/pull/9), TU7: no domain asked), `baseline-v3` ([#7](https://github.com/sourceplane/turso-starter/pull/7), [#8](https://github.com/sourceplane/turso-starter/pull/8), TU6), `baseline-v2` ([#6](https://github.com/sourceplane/turso-starter/pull/6), one landing); `baseline-v1` is TU4's four-phase build ([#5](https://github.com/sourceplane/turso-starter/pull/5)). Proven offline (Baseline CI: a todo round-tripped through a local D1 under `wrangler dev`), deploy gated until a workspace is linked |
 
 ## Read order
 
@@ -36,3 +36,4 @@ The port keeps the page, the form, the server actions and the todo list. It adds
 | TU4 — a baseline | card, build document (four phases, the database its own), rename, bootstrap tooling, tests | a new todo list goes from nothing to live, its D1 database included; Baseline CI green |
 | TU5 — a baseline, in one landing | the build document rebuilt as `01-product` + `02-docs` (cirrus-baseline v22), the schema as migrations (`packages/db`, `infra/db-migrate`), the deploy-lane fixes | a new todo list goes from nothing to live in one landing, D1 applied, then migrated, then the Worker deployed; Baseline CI green |
 | TU6 — the cirrus standard | no kiox, generated component docs, the context pack, status that agrees with the tags; the console card reads `subdomain` from the Cloudflare connection | Baseline CI green with the docs check |
+| TU7 — the domain is set later | the console asks for no domain; an empty `productdomain` brands the placeholder `<reponame>.example.com` for an owner to replace | Baseline CI green on a fixture with no domain |
