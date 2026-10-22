@@ -26,7 +26,7 @@ design, the milestones and the as-built status.
 git clone --depth 1 --branch <baseline-tag> https://github.com/sourceplane/turso-starter
 cd turso-starter
 orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-todos --run-hooks --resume \
-  --set reponame=acme-todos --set productname="Acme Todos" --set productdomain=acme.dev \
+  --set reponame=acme-todos --set productname="Acme Todos" \
   --set githuborg=acme-inc --set subdomain=<workers-dev-subdomain>
 ```
 

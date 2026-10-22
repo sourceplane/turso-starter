@@ -95,5 +95,8 @@ The site answers on workers.dev from its first deploy. To serve it on your
 own domain, add the domain to the Cloudflare account the site deploys into
 and attach it to the Worker (dashboard → Workers & Pages →
 `turso-starter-web-prod` → Settings → Domains & Routes → Add → Custom
-domain). Nothing in the repository changes: the page renders no absolute
-link to itself.
+domain). The page renders no absolute link to itself, so nothing else has to
+change; the repository names the domain in one place, `BASE_DOMAIN` in
+`intent.yaml`, which the site was born with as the reserved placeholder
+`turso-starter.example.com`. Replace it with your domain in the same change
+that records it.
