@@ -55,12 +55,12 @@ HOOK_ONLY = {"02-docs"}
 # The phases that DEPLOY, and so must give a re-run something to land.
 DEPLOYS = {"01-product"}
 # Each phase's post and await hooks, in order — the one-landing recipe. The
-# `secret-*` reconciles are matched as a group (one per brokered key) and the
-# `wiring` await only when infra publishes wiring; both are checked below.
+# brokered keys are one `secrets` reconcile, and the `wiring` await is
+# expected only when infra publishes wiring; both are checked below.
 POST = {
     "01-product": ["retouch", "git-init", "stage", "rebrand", "orun-workspace", "work-tree",
                    "promotion", "dev-lanes", "restage", "rebrand-verify", "pnpm-lockfile",
-                   "repo", "link", "secret-*", "land"],
+                   "repo", "link", "secrets", "land"],
     "02-docs": ["promotion", "dev-lanes", "render", "land"],
 }
 AWAIT = {"01-product": ["converge", "wiring", "verify"], "02-docs": ["verify"]}
@@ -143,15 +143,8 @@ for p in phases:
                 f"commit it merged (orun.run/watch@v1 with sha: mergeSha)")
 
 # ── the hooks run in the one-landing order ────────────────────────────────
-def collapse(ids):
-    out = []
-    for i in ids:
-        i = "secret-*" if i.startswith("secret-") else i
-        if not out or out[-1] != i or i != "secret-*":
-            out.append(i)
-    return out
 for name, want in POST.items():
-    got = collapse([h.get("id") for h in ((by_name.get(name, {}).get("hooks") or {}).get("post") or [])])
+    got = [h.get("id") for h in ((by_name.get(name, {}).get("hooks") or {}).get("post") or [])]
     if got != want:
         bad(f"phase {name}'s post hooks are {got}; the one-landing order is {want}")
 for name, want in AWAIT.items():
