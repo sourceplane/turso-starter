@@ -22,12 +22,12 @@ restores the promotion gate.
 
 - GitHub org access (repository creation) and a machine with `git`, `node`
   (≥ 22), `pnpm` (10.12.1), `python3` with PyYAML, `curl`, and the `orun`
-  CLI **≥ v2.58.11** — the floor for RUNNING the bootstrap (the phase overlay,
+  CLI **≥ v2.87.0** — the floor for RUNNING the bootstrap (the phase overlay,
   landings that commit per phase and wait on the PR's whole CI run,
   `githubOwner` on the doctor probe, `environments` on the secrets probe, a
-  probe deferred for a project not yet created, and `from: workspace`). The
-  product's own `ci.yml` pins its lanes separately (v2.78.4), and its plans
-  need that pin: the floor does not apply a `dependsOn` edge's `modeRules`.
+  probe deferred for a project not yet created, `from: workspace`, and the
+  deploy credentials minted in one `secrets` reconcile). The product's own
+  `ci.yml` pins its lanes separately (v2.78.4).
 - A Cloudflare account (the free plan is enough for one Worker with static
   assets and a D1 database per environment) and its **Account API token**
   with Workers Scripts Write and D1 Edit (the console's Connect recipe lists
@@ -246,7 +246,7 @@ at the tag and refuses the whole catalogue if it 404s.
 | The product's `intent.yaml` says `workspace: ws_SET_ME` | `orunWorkspace` was empty and the build ran outside a workspace; set it and re-run `01-product` |
 | A bootstrap stopped before `02-docs`; prod no longer waits on stage | the gate is deferred, not dropped: run `02-docs`, or `node tooling/bootstrap/promotion.mjs --restore --file <product>/intent.yaml` |
 | `✕ input "productname" is required` | all three required inputs (`reponame`, `productname`, `githuborg`) must be set on every invocation, single-phase ones included |
-| `unknown flag: --phase` or a parse error in the blueprint | the CLI is below the v2.58.11 floor |
+| `unknown flag: --phase`, `has no parameter "secrets"` or another parse error in the blueprint | the CLI is below the v2.87.0 floor |
 | web lane `verify-app-structure` fails on `wrangler.jsonc` | the config is not committed. It is the fixture render of `wrangler.template.jsonc`: `pnpm run wire:fixture` and commit it |
 | web lane `build-app`: `Symlink apps/web/node_modules/next is invalid, it points out of the filesystem root` | the product's intent pins stack-tectonic ≥ 0.20.0, whose lane-scoped install links each job's node_modules out of its tree, which Next 16's Turbopack refuses. Pin 0.19.0 (`intent.yaml` says why) |
 | the convergence reported green, then `verify` got 404 | a second workflow ran on the push to main and the watch took its run. Only `ci.yml` may run on a push to main (`checks.yml` is pull-request only) |

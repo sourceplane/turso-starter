@@ -45,9 +45,10 @@ for bin in orun node pnpm python3 git; do
   command -v "$bin" >/dev/null || { echo "placement.test.sh needs $bin on PATH" >&2; exit 1; }
 done
 # Step 4 is the PRODUCT's own plan, so it must be planned by the orun the
-# product's CI runs (ci.yml's pin) or newer: v2.58.11, the bootstrap floor,
-# does not apply a dependsOn edge's `modeRules`, and would plan a pull request
-# with the site waiting on the D1 plan and the migrations' plan.
+# product's CI runs (ci.yml's pin) or newer: an older orun (v2.58.11, the
+# bootstrap's floor before v2.87.0) does not apply a dependsOn edge's
+# `modeRules`, and would plan a pull request with the site waiting on the D1
+# plan and the migrations' plan.
 pin="$(sed -n 's/^ *version: *v\([0-9.]*\) *$/\1/p' "$root/.github/workflows/ci.yml" | head -1)"
 have="$(orun --version | sed -n 's/.*version \([0-9.]*\).*/\1/p')"
 python3 -c "import sys; v=lambda s: tuple(map(int, s.split('.'))); sys.exit(0 if v(sys.argv[1]) >= v(sys.argv[2]) else 1)" "$have" "$pin" \

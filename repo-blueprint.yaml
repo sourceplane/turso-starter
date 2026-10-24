@@ -577,31 +577,23 @@ phases:
             - link
             - "{{ .inputs.orunWorkspace }}"
             - "{{ .inputs.githuborg }}/{{ .inputs.reponame }}"
-        # The deploy credentials, brokered, one hook per template:
-        # `integrations/reconcile` mints from ONE connection with ONE scope
-        # template. `workers-deploy` is the site's deploy (Workers Scripts); it
-        # cannot touch D1, so the D1 root's apply and db-migrate's runner bind
+        # The deploy credentials, brokered, in ONE hook (orun >= v2.87.0):
+        # `secrets` mints each key under its own scope template from the one
+        # connection the build is bound to, reading the connections and the
+        # existing secrets once and creating the missing keys side by side.
+        # `workers-deploy` is the site's deploy (Workers Scripts); it cannot
+        # touch D1, so the D1 root's apply and db-migrate's runner bind
         # CLOUDFLARE_D1_TOKEN, minted from `d1-edit`; the account id is a
         # connection fact all three bind. Keys that already exist are kept.
         # After the link, before the landing whose convergence uses them.
-        - id: secret-workers-deploy
+        - id: secrets
           uses: orun.integrations/reconcile@v1
           with:
             provider: cloudflare
-            keys: [CLOUDFLARE_API_TOKEN]
-            template: workers-deploy
-        - id: secret-d1-edit
-          uses: orun.integrations/reconcile@v1
-          with:
-            provider: cloudflare
-            keys: [CLOUDFLARE_D1_TOKEN]
-            template: d1-edit
-        - id: secret-account-id
-          uses: orun.integrations/reconcile@v1
-          with:
-            provider: cloudflare
-            keys: [CLOUDFLARE_ACCOUNT_ID]
-            template: account-id
+            secrets:
+              - { key: CLOUDFLARE_API_TOKEN, template: workers-deploy }
+              - { key: CLOUDFLARE_D1_TOKEN, template: d1-edit }
+              - { key: CLOUDFLARE_ACCOUNT_ID, template: account-id }
         # THE PRODUCT IS A PULL REQUEST THAT IS CHECKED, THEN MERGED. This
         # landing waits for its PR's whole CI run (orun >= v2.58.6): Checks
         # (install, the fixture render, typecheck, lint, test, build) and

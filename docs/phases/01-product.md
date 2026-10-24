@@ -28,9 +28,7 @@ waits.
 | `pnpm-lockfile` | confirms the baseline's complete lockfile against the placed tree |
 | `repo` | `orun.repo/ensure@v1` creates `<githuborg>/<reponame>` (or finds it) |
 | `link` | the repository becomes the workspace's; `orun cloud check` is the gate |
-| `secret-workers-deploy` | `orun.integrations/reconcile@v1` — `CLOUDFLARE_API_TOKEN` from the `workers-deploy` template: Workers Scripts, the site's deploy |
-| `secret-d1-edit` | `CLOUDFLARE_D1_TOKEN` from the `d1-edit` template: D1, for the database's apply and the migrations (the deploy token cannot touch D1) |
-| `secret-account-id` | `CLOUDFLARE_ACCOUNT_ID`, the connection fact all three bind |
+| `secrets` | `orun.integrations/reconcile@v1`, the three keys in one hook, created side by side: `CLOUDFLARE_API_TOKEN` from the `workers-deploy` template (Workers Scripts, the site's deploy); `CLOUDFLARE_D1_TOKEN` from `d1-edit` (D1, for the database's apply and the migrations — the deploy token cannot touch D1); `CLOUDFLARE_ACCOUNT_ID`, the connection fact all three bind |
 | `land` | one PR bound to the task, merged once its checks (Checks, and `plan`) are green |
 | `converge` (await) | `orun.run/watch@v1` on the merge commit's run; resumes it up to three times |
 | `wiring` (await) | `orun.secrets/exists@v1` — `WIRING_CLOUDFLARE_D1` exists on stage and prod |
