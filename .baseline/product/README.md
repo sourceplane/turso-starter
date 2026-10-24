@@ -80,8 +80,8 @@ stage has converged on the same commit; `dev` only verifies. The Worker is
 every deploy is smoke-tested over HTTP: the page must render the list's row
 count, which only a Worker that queried its database can. `checks.yml` runs
 install, the fixture render, typecheck, lint, test and build on every pull
-request. (A push to `main` runs `ci.yml` alone, which applies, migrates,
-builds and deploys.)
+request but the bootstrap's own (`orun/BASE-*`). (A push to `main` runs
+`ci.yml` alone, which applies, migrates, builds and deploys.)
 
 The pipeline holds one credential, GitHub's own `GITHUB_TOKEN`. The
 Cloudflare tokens (one to deploy, one scoped to D1) and the account id are

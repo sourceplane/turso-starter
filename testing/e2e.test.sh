@@ -6,11 +6,12 @@
 # This proves it WORKS, by doing to it what its own pipelines will:
 #
 #   1. at the 01-product landing (the commit its one pull request merges),
-#      run what `checks.yml` runs on that PR — install with the lockfile the
-#      phase confirmed, render the wrangler fixture and check the committed
-#      config IS that render, typecheck, lint, test, build. The landing WAITS
-#      on those checks, so a product they refuse is a bootstrap that never
-#      merges;
+#      run what `checks.yml` runs — install with the lockfile the phase
+#      confirmed, render the wrangler fixture and check the committed config
+#      IS that render, typecheck, lint, test, build. The landing's own PR
+#      skips that job (an `orun/BASE-*` branch), so THIS is where a product
+#      those steps refuse is caught: before the tag, not after a build has
+#      merged it. Every later pull request in the product runs them too;
 #   2. the stage lanes' own steps, rendered by `orun plan` in the product and
 #      run IN THE TREE THE RUNNER STAGES for each job (testing/lib/stage-job.py),
 #      with the dependency layout the pinned composition produces and with the
@@ -172,7 +173,7 @@ echo "   2 phases placed and landed"
 s01="$(git -C "$tree" rev-parse HEAD~1)"
 
 # ── 1. the product's one pull request ──────────────────────────────────────
-echo "── 01-product's landing, under the checks its PR waits on"
+echo "── 01-product's landing, under the steps checks.yml runs"
 git -C "$tree" worktree add -q "$scratch/at-01" "$s01"
 checks "$scratch/at-01" "$scratch/checks-01.log"
 # The first Checks build is done; its tree is not needed again, and the disk is shared.

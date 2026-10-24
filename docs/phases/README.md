@@ -41,8 +41,10 @@ Every landing is a pull request on a branch named for its task
 intent, every component and every composition resolve — and skips the lanes,
 because the merge runs them on main a minute later, for real, and that
 convergence is what the phase watches. `checks.yml` (install, the fixture
-render, typecheck, lint, test, build) runs on every pull request regardless,
-and the product's landing waits for it.
+render, typecheck, lint, test, build) skips those branches too: the
+baseline's own CI ran its steps on this landing before the tag was cut, and
+the merge builds and smoke-tests the site on main. Every other pull request
+runs it.
 
 There is no custom-domain phase. Attaching a domain to a Worker needs zone
 permissions the platform's brokered `workers-deploy` token does not carry, so
