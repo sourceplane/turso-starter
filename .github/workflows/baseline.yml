@@ -113,8 +113,8 @@ jobs:
           git config --global user.name "baseline ci"
           bash testing/placement.test.sh
 
-  # Tier 2. THE PRODUCT IT PRODUCES WORKS: its one landing under the checks
-  # its pull request waits on, the stage lane's own structure check, build
+  # Tier 2. THE PRODUCT IT PRODUCES WORKS: its one landing under the steps
+  # checks.yml runs (its own PR skips them), the stage lane's own structure check, build
   # (the live wiring render included), output check and dry deploy in the tree
   # orun stages, the migration lane's plan and apply (against a stand-in D1
   # API), and the built Worker served and smoke-tested with the component's

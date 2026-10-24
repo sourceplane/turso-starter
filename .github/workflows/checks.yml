@@ -13,6 +13,14 @@ name: Checks
 # watched this run go green while ci.yml's deploy lanes had failed, and called
 # the site converged. On main the convergence builds and tests the site
 # anyway. The baseline's coverage gate holds the rule.
+#
+# NOT ON THE BOOTSTRAP'S OWN LANDINGS. Every phase lands on a branch named for
+# its task (`orun/BASE-<n>-<phase>`) and `orun.pr/land@v1` merges it once its
+# checks settle, so this job was most of each landing's wait — for a tree the
+# baseline's own CI already put through these exact steps before its tag was
+# cut, and that the merge builds, deploys and smoke-tests on main a minute
+# later. `ci.yml`'s `plan` still checks every landing. Every other pull
+# request runs this job as before.
 on:
   pull_request:
   workflow_dispatch:
@@ -26,6 +34,7 @@ permissions:
 
 jobs:
   checks:
+    if: ${{ !(github.event_name == 'pull_request' && startsWith(github.head_ref, 'orun/BASE-')) }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
