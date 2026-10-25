@@ -13,7 +13,7 @@ to what the build document does.
 
 Target wall-clock: **about sixteen minutes** — an estimate summed from the
 phases until a bootstrap measures it: ONE landing whose pull request waits on
-Checks (a full Next.js build), then one convergence — per environment the D1
+`plan`, then one convergence — per environment the D1
 database applied, then its migrations, then the site built with its id and
 deployed, stage and prod side by side — then a short docs landing that
 restores the promotion gate.
@@ -249,4 +249,4 @@ at the tag and refuses the whole catalogue if it 404s.
 | `unknown flag: --phase`, `has no parameter "secrets"` or another parse error in the blueprint | the CLI is below the v2.87.0 floor |
 | web lane `verify-app-structure` fails on `wrangler.jsonc` | the config is not committed. It is the fixture render of `wrangler.template.jsonc`: `pnpm run wire:fixture` and commit it |
 | web lane `build-app`: `Symlink apps/web/node_modules/next is invalid, it points out of the filesystem root` | the product's intent pins stack-tectonic ≥ 0.20.0, whose lane-scoped install links each job's node_modules out of its tree, which Next 16's Turbopack refuses. Pin 0.19.0 (`intent.yaml` says why) |
-| the convergence reported green, then `verify` got 404 | a second workflow ran on the push to main and the watch took its run. Only `ci.yml` may run on a push to main (`checks.yml` is pull-request only) |
+| the convergence reported green, then `verify` got 404 | a second workflow ran on the push to main and the watch took its run. Only `ci.yml` may run on a push to main |

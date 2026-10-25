@@ -115,14 +115,13 @@ apps/web  dependsOn cloudflare-d1 + db-migrate (enforced on main) · secretEnv W
 
 `wrangler.jsonc` is committed as the fixture render of
 `wrangler.template.jsonc`, because the deploy lane's `verify-app-structure`
-step checks the config exists before it builds; Checks fails if the two
-disagree.
+step checks the config exists before it builds; `testing/e2e.test.sh` fails
+if the two disagree.
 
 ## CI
 
 | Workflow | What it runs | Ships to a product |
 |---|---|---|
-| `checks.yml` | install, wire fixtures (and the committed config is their render), typecheck, lint, test, build — every PR but the bootstrap's own landings (`orun/BASE-*`, which Tier 2 already ran these steps on), and not pushes: on main, `ci.yml` must be the only run a commit has, because the bootstrap's convergence watch takes the newest one | yes |
-| `ci.yml` | the Orun pipeline: `orun plan --changed`, then one job per lane; applies the D1 database, migrates it, then deploys stage → prod on merge. It plans nothing while `intent.yaml` names the placeholder workspace `ws_CHANGE_ME`, as this repository does | yes |
+| `ci.yml` | the Orun pipeline, and the only workflow a product carries: `orun plan --changed`, then one job per lane. A pull request runs the verify lanes (packages type-checked, linted, tested and built, both test suites, the site built and dry-deployed per environment), except the bootstrap's own landings (`orun/BASE-*`), where `plan` alone is the check; a merge applies the D1 database, migrates it, then deploys stage → prod. It plans nothing while `intent.yaml` names the placeholder workspace `ws_CHANGE_ME`, as this repository does | yes |
 | `baseline.yml` | the baseline's own tiers: contract tests, the wiring path, the blueprint read by the pinned orun, the leak gate, the offline bootstrap with the product's own plan, the product built in the job tree, migrated, dry-deployed and served | no |
 | `tag.yml` | cuts a `baseline-vN` tag (manual) | no |

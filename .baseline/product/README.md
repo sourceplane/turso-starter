@@ -56,8 +56,7 @@ The Worker binds the database as `DB`. Its id is never hand-written:
 (placeholder ids) for local work and verification, and on every deploy from
 the document the `cloudflare-d1` Terraform root publishes after its apply
 (`WIRING_CLOUDFLARE_D1`, per environment). Edit the template, then
-`pnpm run wire:fixture`; Checks fails if the committed `wrangler.jsonc` is
-not the fixture render.
+`pnpm run wire:fixture` and commit the render with the template.
 
 The schema is `packages/db`'s migrations, not the page's: each
 `src/migrations/<NNN>_<name>/up.sql` is listed in `src/manifest.ts` with
@@ -78,10 +77,11 @@ environment's database id and deploys — to `stage`, then to `prod` once
 stage has converged on the same commit; `dev` only verifies. The Worker is
 `turso-starter-web-<env>` on your account's workers.dev subdomain, and
 every deploy is smoke-tested over HTTP: the page must render the list's row
-count, which only a Worker that queried its database can. `checks.yml` runs
-install, the fixture render, typecheck, lint, test and build on every pull
-request but the bootstrap's own (`orun/BASE-*`). (A push to `main` runs
-`ci.yml` alone, which applies, migrates, builds and deploys.)
+count, which only a Worker that queried its database can. A pull request
+runs the same pipeline's verify lanes: the packages type-checked, linted,
+tested and built, both test suites, and the site built and dry-deployed for
+each environment, with nothing deployed. (A push to `main` applies,
+migrates, builds and deploys.)
 
 The pipeline holds one credential, GitHub's own `GITHUB_TOKEN`. The
 Cloudflare tokens (one to deploy, one scoped to D1) and the account id are

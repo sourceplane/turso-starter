@@ -29,7 +29,7 @@ waits.
 | `repo` | `orun.repo/ensure@v1` creates `<githuborg>/<reponame>` (or finds it) |
 | `link` | the repository becomes the workspace's; `orun cloud check` is the gate |
 | `secrets` | `orun.integrations/reconcile@v1`, the three keys in one hook, created side by side: `CLOUDFLARE_API_TOKEN` from the `workers-deploy` template (Workers Scripts, the site's deploy); `CLOUDFLARE_D1_TOKEN` from `d1-edit` (D1, for the database's apply and the migrations — the deploy token cannot touch D1); `CLOUDFLARE_ACCOUNT_ID`, the connection fact all three bind |
-| `land` | one PR bound to the task, merged once its checks (Checks, and `plan`) are green |
+| `land` | one PR bound to the task, merged once its check (`plan`) is green |
 | `converge` (await) | `orun.run/watch@v1` on the merge commit's run; resumes it up to three times |
 | `wiring` (await) | `orun.secrets/exists@v1` — `WIRING_CLOUDFLARE_D1` exists on stage and prod |
 | `verify` (await) | `orun.http/probe@v1` on both workers.dev URLs |
@@ -46,8 +46,10 @@ by side:
 | `db-migrate · stage` / `· prod` | that environment's D1 apply (`dependsOn: cloudflare-d1`, `mode: enforced` on main) | resolves `WIRING_CLOUDFLARE_D1` and the D1 token as it starts, builds `packages/db`, and applies every pending migration over the D1 REST API — the `todos` table on a fresh database — recording each in `_migrations_applied` |
 | `stage · web` / `prod · web` | that environment's D1 apply and its migrations (`dependsOn` both, `mode: enforced` on main) | resolves `WIRING_CLOUDFLARE_D1_<ENV>`, renders `wrangler.jsonc` with the real database id, builds with OpenNext, deploys `<reponame>-web-<env>`, and smoke-tests it: `/` must render the list's row count (`data-todos="N"`), which only the Worker querying its migrated database can |
 
-`web-tests`, `db-tests` and `db` verify on dev only, so on the merge their
-gate is the pull request's Checks run, which the landing waited for.
+`web-tests`, `db-tests` and `db` verify on dev only, on a pull request. The
+landing's own pull request runs `plan` alone: the baseline's own CI ran their
+checks on this exact tree before the tag was cut, and every later pull
+request in the product runs them.
 
 ## Verified
 

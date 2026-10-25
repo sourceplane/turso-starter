@@ -1,5 +1,7 @@
 # db-tests
 
+The todos migrations' tests (each migration applied through the runner into a real SQLite), run on every pull request
+
 The test suite for **db**. It deploys nothing: its lane installs, builds and runs the tests.
 
 |              |                      |

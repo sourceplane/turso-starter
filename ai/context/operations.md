@@ -84,8 +84,9 @@ Caveats that matter:
   converged"; probe the URLs instead.
 - A change to `intent.yaml`'s `environments` maps to no component and
   redeploys nothing on its own. Land it with a change under `apps/web`.
-- `wrangler.jsonc` is generated. Edit `wrangler.template.jsonc` and run
-  `pnpm run wire:fixture`; Checks fails when the two disagree.
+- `wrangler.jsonc` is generated. Edit `wrangler.template.jsonc`, run
+  `pnpm run wire:fixture` and commit both; the deploy renders its own
+  config from the template, so a stale committed render misleads local work.
 - An applied migration is immutable: its checksum is recorded, and the
   runner refuses to run while a file no longer matches it. Change the
   schema with a NEW migration.

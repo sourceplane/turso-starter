@@ -8,7 +8,7 @@ name: Baseline CI
 # database, then its migrations, then the Worker on a merge — and that the
 # product it produces installs, builds, migrates, deploys (dry) and serves.
 #
-# ─── WHY THIS IS NOT IN ci.yml OR checks.yml ──────────────────────────────
+# ─── WHY THIS IS NOT IN ci.yml ────────────────────────────────────────────
 #
 # `repo-blueprint.yaml`'s `github-workflows` module copies the WHOLE `.github`
 # directory into every site built from this repository. These jobs run
@@ -115,8 +115,8 @@ jobs:
           git config --global user.name "baseline ci"
           bash testing/placement.test.sh
 
-  # Tier 2. THE PRODUCT IT PRODUCES WORKS: its one landing under the steps
-  # checks.yml runs (its own PR skips them), the stage lane's own structure check, build
+  # Tier 2. THE PRODUCT IT PRODUCES WORKS: its one landing installed, its
+  # fixture rendered, type-checked, linted, tested and built, the stage lane's own structure check, build
   # (the live wiring render included), output check and dry deploy in the tree
   # orun stages, the migration lane's plan and apply (against a stand-in D1
   # API), and the built Worker served and smoke-tested with the component's

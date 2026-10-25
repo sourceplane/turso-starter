@@ -40,11 +40,10 @@ Every landing is a pull request on a branch named for its task
 (`orun/BASE-<n>-<phase>`). On those branches `ci.yml` runs `plan` only — the
 intent, every component and every composition resolve — and skips the lanes,
 because the merge runs them on main a minute later, for real, and that
-convergence is what the phase watches. `checks.yml` (install, the fixture
-render, typecheck, lint, test, build) skips those branches too: the
-baseline's own CI ran its steps on this landing before the tag was cut, and
-the merge builds and smoke-tests the site on main. Every other pull request
-runs it.
+convergence is what the phase watches. The product carries no other
+workflow: the baseline's own CI (Tier 2) installs, renders the fixture,
+type-checks, lints, tests and builds this landing before a tag is cut, and
+every later pull request in the product runs `ci.yml`'s verify lanes.
 
 There is no custom-domain phase. Attaching a domain to a Worker needs zone
 permissions the platform's brokered `workers-deploy` token does not carry, so
