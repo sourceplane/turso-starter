@@ -431,9 +431,9 @@ phases:
   - name: 01-product
     title: The product, built in one landing
     description: The whole tree — manifests, CI, tooling, the D1 root, the migrations, the site and its tests — branded, landed as one pull request, and provisioned, migrated and deployed by one convergence.
-    # An estimate until a bootstrap measures it: the pull request's Checks (a
-    # full Next.js build), the merge, the D1 apply, the migrations, then the
-    # site's build, deploy and smoke on stage and prod side by side.
+    # An estimate until a bootstrap measures it: the pull request's `plan`,
+    # the merge, the D1 apply, the migrations, then the site's build, deploy
+    # and smoke on stage and prod side by side.
     expectedMinutes: 14
     narrate:
       start:  "Creating the repository and landing the whole product in one pull request — intent, CI, tooling, the D1 database, its migrations and the todo list with its tests. Then one convergence applies the database, migrates it and deploys the site on stage and prod. Usually about {{ .meta.expectedMinutes }} minutes."
@@ -545,8 +545,8 @@ phases:
         - id: rebrand-verify
           run: ["node", "{{ .baseline.dir }}/tooling/rebrand/rebrand.mjs", "--verify", "--values", ".rebrand/values.json"]
         # root-pnpm-lock places the baseline's complete lockfile and the whole
-        # tree is here, so this only confirms it; the lanes and Checks install
-        # with --frozen-lockfile. The lockfile carries no identity.
+        # tree is here, so this only confirms it; the lanes install with
+        # --frozen-lockfile. The lockfile carries no identity.
         - id: pnpm-lockfile
           run: ["pnpm", "install", "--lockfile-only"]
         # The repo has to exist before there is anywhere to land.
@@ -595,11 +595,11 @@ phases:
               - { key: CLOUDFLARE_D1_TOKEN, template: d1-edit }
               - { key: CLOUDFLARE_ACCOUNT_ID, template: account-id }
         # THE PRODUCT IS A PULL REQUEST THAT IS CHECKED, THEN MERGED. This
-        # landing waits for its PR's whole CI run (orun >= v2.58.6): Checks
-        # (install, the fixture render, typecheck, lint, test, build) and
-        # `plan` — on a bootstrap branch (`orun/BASE-…`) the lanes are skipped
-        # (ci.yml), because the merge runs every one of them on main a minute
-        # later, for real, and that convergence is what `await` watches.
+        # landing waits for its PR's whole CI run (orun >= v2.58.6): `plan` —
+        # the intent, every component and every composition resolve. On a
+        # bootstrap branch (`orun/BASE-…`) the lanes are skipped (ci.yml),
+        # because the merge runs every one of them on main a minute later, for
+        # real, and that convergence is what `await` watches.
         - id: land
           uses: orun.pr/land@v1
           narrate: "The product is merged into main."

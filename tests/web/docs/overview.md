@@ -1,5 +1,7 @@
 # web-tests
 
+The todo list's tests (the page, the form and the server actions against an in-memory D1), run on every pull request
+
 The test suite for **web**. It deploys nothing: its lane installs, builds and runs the tests.
 
 |              |                      |
