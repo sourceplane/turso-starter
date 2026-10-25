@@ -6,7 +6,7 @@
 # This proves it WORKS, by doing to it what its own pipelines will:
 #
 #   1. at the 01-product landing (the commit its one pull request merges),
-#      install with the lockfile the phase confirmed, render the wrangler
+#      install with the lockfile the product ships, render the wrangler
 #      fixture and check the committed config IS that render, typecheck,
 #      lint, test, build. The landing's own PR runs `plan` alone (an
 #      `orun/BASE-*` branch), so THIS is where a product those steps refuse

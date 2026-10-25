@@ -11,22 +11,25 @@ not separate workflows. The console card the platform renders is
 brokered secrets and the programme, and `testing/manifest.test.sh` holds it
 to what the build document does.
 
-Target wall-clock: **about sixteen minutes** — an estimate summed from the
-phases until a bootstrap measures it: ONE landing whose pull request waits on
-`plan`, then one convergence — per environment the D1
-database applied, then its migrations, then the site built with its id and
-deployed, stage and prod side by side — then a short docs landing that
-restores the promotion gate.
+Target wall-clock: **about five minutes** from the build box's boot, summed
+from the phases (4 + 1). A v6 build measured 5:14; v8 takes about a minute
+out of it. The shape: the task set-up in the background while ONE landing is
+placed, branded and checked in the box (`orun validate` and `orun plan`, no
+runner waited for), then one convergence — per environment the D1 database
+applied, then its migrations, then the site built with its id and deployed,
+stage and prod side by side — then a short docs landing that restores the
+promotion gate.
 
 ## 0. What you need
 
 - GitHub org access (repository creation) and a machine with `git`, `node`
   (≥ 22), `pnpm` (10.12.1), `python3` with PyYAML, `curl`, and the `orun`
-  CLI **≥ v2.87.0** — the floor for RUNNING the bootstrap (the phase overlay,
-  landings that commit per phase and wait on the PR's whole CI run,
-  `githubOwner` on the doctor probe, `environments` on the secrets probe, a
-  probe deferred for a project not yet created, `from: workspace`, and the
-  deploy credentials minted in one `secrets` reconcile). The product's own
+  CLI **≥ v2.88.0** — the floor for RUNNING the bootstrap (the phase overlay,
+  landings that commit per phase, `githubOwner` on the doctor probe, a probe
+  deferred for a project not yet created, `from: workspace`, the deploy
+  credentials minted in one `secrets` reconcile, the task set-up run in the
+  background (`background: true`), and landings checked in the box before
+  they merge (`checks: local`)). The product's own
   `ci.yml` pins its lanes separately (v2.78.4).
 - A Cloudflare account (the free plan is enough for one Worker with static
   assets and a D1 database per environment) and its **Account API token**
@@ -81,8 +84,8 @@ phase whose files are present but branded derives as `drifted`, and
 
 | phase | what it lands | verified by |
 |---|---|---|
-| `01-product` | the repository, created and linked; the WHOLE product in one PR — intent, CI, tooling, identity, the D1 root, the migrations, the site and its tests; the brokered Cloudflare secrets (the deploy token, the D1 token, the account id) | its PR's checks green and merged; the convergence green (D1 applied, then migrated, then the site built, deployed, smoke-tested); `WIRING_CLOUDFLARE_D1` on stage and prod; both workers.dev URLs answering |
-| `02-docs` | `ai/context/deployment.md` from probed facts; prod's promotion gate and dev's push lanes restored | the final probe |
+| `01-product` | the repository, created and linked; the WHOLE product in one PR — intent, CI, tooling, identity, the D1 root, the migrations, the site and its tests; the brokered Cloudflare secrets (the deploy token, the D1 token, the account id) | its commit validated and planned in the box (as the PR and as the merge), then merged; the convergence green (D1 applied, then migrated — which resolves `WIRING_CLOUDFLARE_D1` — then the site built, deployed, smoke-tested); both workers.dev URLs answering |
+| `02-docs` | `ai/context/deployment.md` from probed facts; prod's promotion gate and dev's push lanes restored | the render's own probes, recorded; the commit checked in the box and merged |
 
 ```bash
 orun new --blueprint repo-blueprint.yaml --out ~/sites/acme-todos --run-hooks \
@@ -134,9 +137,9 @@ per environment:
 - A job resolves its secrets when it STARTS, so `WIRING_CLOUDFLARE_D1` is
   there when the migrations begin, and `WIRING_CLOUDFLARE_D1_<ENV>` when the
   deploy does.
-- The landing's `await` then asks the platform that the wiring exists on
-  stage and prod (`orun.secrets/exists@v1`) — every later migration and
-  deploy reads it.
+- Both readers resolve the document from the place every later run looks
+  (their `component.yaml` secret refs), so a green convergence already says
+  it is there: a missing one fails their lane. There is no separate check.
 
 `testing/phases.test.sh` fails if a component that reads a wiring document
 does not wait for its publisher this way, or if a deployable that binds the
@@ -241,12 +244,14 @@ at the tag and refuses the whole catalogue if it 404s.
 | db-migrate lane: `Checksum mismatch for already-applied migrations` | an applied migration's file was edited; restore it and put the change in a new migration |
 | web lane fails resolving `WIRING_CLOUDFLARE_D1_<ENV>` | that environment's D1 apply failed — read its lane; the web lane waits on it |
 | the smoke fails on a "no `todos` table" notice | the migrations did not reach the database the Worker binds — read the db-migrate lane for that environment |
-| `wiring` await stops: `WIRING_CLOUDFLARE_D1` missing on stage or prod | the convergence was green but the apply published nothing: the D1 component lost its `secretOutputs`, or its lane was not in the plan. Re-run the phase; its retouch marker re-plans the D1 root |
+| db-migrate or web lane: `WIRING_CLOUDFLARE_D1` not found | that environment's D1 apply published nothing: the D1 component lost its `secretOutputs`, or its lane was not in the plan. Re-run the phase; its retouch marker re-plans the D1 root |
+| `land` stops: `the landing's own check failed — orun plan for …` | the product's tree does not plan — the line after it is orun's own error (an unknown component type, a composition that does not resolve). Nothing was pushed. Fix the tree (or the baseline) and re-run the phase |
+| `land` waits on CI after all | the product's repository requires a status check on `main` (branch protection or a ruleset), so GitHub refused the early merge; the landing waits for the check as a `checks: ci` landing would, then merges |
 | Convergence failed AFTER the PR merged; re-running lands nothing | expected on its own — the files are on main. Re-run the phase (`--phase 01-product`, `--redo 01-product`, or the console's Retry): its `retouch` hook gives the landing a diff and the D1 root, the migrations and the site re-plan; applied migrations are skipped |
 | The product's `intent.yaml` says `workspace: ws_SET_ME` | `orunWorkspace` was empty and the build ran outside a workspace; set it and re-run `01-product` |
 | A bootstrap stopped before `02-docs`; prod no longer waits on stage | the gate is deferred, not dropped: run `02-docs`, or `node tooling/bootstrap/promotion.mjs --restore --file <product>/intent.yaml` |
 | `✕ input "productname" is required` | all three required inputs (`reponame`, `productname`, `githuborg`) must be set on every invocation, single-phase ones included |
-| `unknown flag: --phase`, `has no parameter "secrets"` or another parse error in the blueprint | the CLI is below the v2.87.0 floor |
+| `unknown flag: --phase`, `has no parameter "checks"`, `has no parameter "secrets"` or another parse error in the blueprint | the CLI is below the v2.88.0 floor |
 | web lane `verify-app-structure` fails on `wrangler.jsonc` | the config is not committed. It is the fixture render of `wrangler.template.jsonc`: `pnpm run wire:fixture` and commit it |
 | web lane `build-app`: `Symlink apps/web/node_modules/next is invalid, it points out of the filesystem root` | the product's intent pins stack-tectonic ≥ 0.20.0, whose lane-scoped install links each job's node_modules out of its tree, which Next 16's Turbopack refuses. Pin 0.19.0 (`intent.yaml` says why) |
 | the convergence reported green, then `verify` got 404 | a second workflow ran on the push to main and the watch took its run. Only `ci.yml` may run on a push to main |
