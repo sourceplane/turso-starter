@@ -24,7 +24,7 @@ metadata:
     D1 database Terraform provisions per environment, its schema applied by
     db-migrate, and CI that applies the database, migrates it and deploys the
     site to stage and prod on merge. One provider, one consent. Live in about
-    fifteen minutes, in one landing.
+    five minutes, in one landing.
   tags: [todos, d1, sqlite, cloudflare, nextjs]
 spec:
   source:
@@ -147,9 +147,10 @@ spec:
     # THE BUILD DOCUMENT. There is no umbrella workflow and no agent brief:
     # every phase is declared in it and orun runs it.
     blueprint: repo-blueprint.yaml
-    # Summed from the phases' expectedMinutes. An estimate until a bootstrap
-    # measures it.
-    expectedMinutes: 16
+    # Summed from the phases' expectedMinutes (4 + 1), which come from a
+    # measured build: 5:14 from the box's boot on v6, less the minute v8 takes
+    # out of it.
+    expectedMinutes: 5
     tokenChannel: ORUN_TOKEN_FILE   # how a runner hands over its refreshed token
   verify:
     urls:
