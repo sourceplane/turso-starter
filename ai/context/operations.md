@@ -132,6 +132,7 @@ orun integrations list --org <ws> --json && orun cloud check --org <ws>
 | change the schema | add `packages/db/src/migrations/<NNN>_<name>/up.sql` (idempotent: `IF NOT EXISTS`), list it in `src/manifest.ts`, `pnpm --filter @saas/db run manifest:fix`, merge — db-migrate applies it before the site redeploys |
 | try the schema locally | `pnpm --filter @app/web db:migrate:local` applies every migration to wrangler's local D1 |
 | deploy a change | merge to `main`; watch the run; failed lanes → `gh run rerun --failed` |
+| deploy by hand | Orunbase's Deploy button, or `gh workflow run ci.yml --ref main -f environment=<env> [-f component=<a,b>]` — the named components (blank: every one) run in that environment as a merge runs them; started off `main` it is refused |
 | redeploy without a change | edit the last line of `apps/web/component.yaml` (`# orun: redeploy <reason> <stamp>`) and merge — it is a deploy trigger, nothing reads it |
 | query a live database | `wrangler d1 execute <name> --remote --command "SELECT count(*) FROM todos"` (the name is in the environment's `WIRING_CLOUDFLARE_D1`) |
 | add a binding (R2, KV, another D1) | a Terraform root under `infra/terraform/` that publishes `WIRING_<ROOT>`, a token in `wrangler.template.jsonc`, its fixture entry, the root in the build's `--components`, the `WIRING_<ROOT>_<ENV>` secretEnv and an enforced `dependsOn` on it in `apps/web/component.yaml` |
