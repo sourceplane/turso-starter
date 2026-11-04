@@ -62,6 +62,29 @@ spec:
           - profile: deploy
             when:
               triggerRef: github-push-main
+  # How the site runs itself for orun.work's live Preview tab
+  # (saas-parallel-baselining PB4): `orun preview` starts this, and a coding
+  # session keeps it running while it works, so the person watches it change
+  # as it is built. The dev server binds the box's loopback only, on a fixed
+  # port, and installs first, so a checkout the session has not installed yet
+  # still comes up.
+  # It installs only this app's packages, applies packages/db's migrations to
+  # wrangler's LOCAL D1 (tooling/migrations/local.mjs, idempotent; a failure
+  # there still starts the site, which then says the table is missing), and
+  # caps the heap: the box is shared with the agent. The todos live in that
+  # local D1 (next.config's initOpenNextCloudflareForDev), never the deployed
+  # database.
+  preview:
+    run:
+      - sh
+      - -c
+      - pnpm install --frozen-lockfile --prefer-offline --filter "@app/web..." && (PATH="$PWD/node_modules/.bin:$PATH" node ../../tooling/migrations/local.mjs || true) && exec node_modules/.bin/next dev -H 127.0.0.1 -p 3000
+    port: 3000
+    path: /
+    env:
+      NODE_OPTIONS: --max-old-space-size=1024
+      NEXT_TELEMETRY_DISABLED: "1"
+      WRANGLER_SEND_METRICS: "false"
   parameters:
     nodeVersion: "22"
     pnpmVersion: "10.12.1"
